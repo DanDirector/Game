@@ -6,16 +6,27 @@
 <title>Догонялки Платформер v3.9 - Плавное Движение</title>
 <style>
 /* ... стили без изменений ... */
-body { display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #2a2a2a; margin: 0; font-family: sans-serif; flex-direction: column; overflow: hidden; } canvas { border: 1px solid #f5c876; background-color: #e0e6eb; display: block; } #controls { margin-bottom: 10px; padding: 8px 12px; background-color: rgba(224, 224, 224, 0.85); border-radius: 5px; text-align: center; color: #333; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 10; opacity: 0.9; font-size: 12px; line-height: 1.4; } #controls b { display: block; margin-bottom: 3px; }
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #2a2a2a;
+  margin: 0;
+  font-family: sans-serif;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+canvas {
+  border: 1px solid #f5c876;
+  background-color: #e0e6eb;
+  display: block;
+}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
 </head>
 <body>
-<div id="controls">
-<b>Управление:</b>
-<span>Игрок 1 (Синий): W, A, D</span> | <span>Игрок 2 (Красный): ↑, ←, →</span><br>
-<i>Цель: Догоняющий (с ▼) касается другого. Плавное движение!</i>
-</div>
 <canvas id="gameCanvas" width="800" height="600"></canvas>
 <script>
     document.addEventListener('DOMContentLoaded', () => {
