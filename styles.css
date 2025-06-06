@@ -1,0 +1,18 @@
+/* ... стили без изменений ... */
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #2a2a2a;
+  margin: 0;
+  font-family: sans-serif;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+canvas {
+  border: 1px solid #f5c876;
+  background-color: #e0e6eb;
+  display: block;
+}
