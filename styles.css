@@ -30,8 +30,15 @@ canvas {
   flex-direction: column;
 }
 
+#onePlayerBtn,
+#twoPlayerBtn,
 #startButton {
   padding: 10px 20px;
   font-size: 1.2rem;
   cursor: pointer;
+  margin: 5px 0;
+}
+
+#startButton {
+  margin-top: 15px;
 }
