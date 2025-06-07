@@ -48,6 +48,13 @@ import { updateBotAI } from './botAI.js';
         const accelerationFactor = 0.1; // Коэффициент ускорения (0.0 до 1.0)
         const decelerationFactor = 0.15; // Коэффициент замедления (0.0 до 1.0)
 
+        // --- Параметры ИИ бота ---
+        const chaseDistance = 2;   // Минимальная дистанция для начала преследования
+        const jumpHeight = 20;     // Разница высот, после которой бот прыгает
+        const jumpRange = 200;     // Горизонтальная дистанция, в пределах которой бот может прыгнуть
+        const stuckDistance = 1;   // Максимальное смещение, при котором бот считается неподвижным
+        const stuckTime = 500;     // Время (мс) без движения, после которого бот прыгает
+
         // --- Цвета ---
         const colors = { /* ... без изменений ... */
              backgroundStart: '#e0e6eb', backgroundEnd: '#b0b8c1', hillColorFar: 'rgba(130, 140, 150, 0.3)', hillColorNear: 'rgba(120, 130, 140, 0.4)', platformBase: '#f5d7a4', platformEdge: '#e4a76a', playerBody: '#2c3e50', player1Headband: '#3498db', player2Headband: '#e74c3c', eyeWhite: '#ffffff', eyePupil: '#000000', indicator: '#f1c40f', borderColor: '#f5c876', palmTrunk: '#a0795b', palmLeaves: '#27ae60', flash: 'rgba(255, 255, 0, 0.3)'
@@ -113,7 +120,12 @@ import { updateBotAI } from './botAI.js';
                     jumpStrength,
                     accelerationFactor,
                     decelerationFactor,
-                    jumpVelocityThreshold
+                    jumpVelocityThreshold,
+                    chaseDistance,
+                    jumpHeight,
+                    jumpRange,
+                    stuckDistance,
+                    stuckTime
                 }, dt);
             }
             Engine.update(engine, dt); updateCamera(camera, canvasWidth, canvasHeight, worldWidth, worldHeight, zoomPadding, minZoom, maxZoom, zoomLerpFactor, cameraLerpFactor, playerBodies);

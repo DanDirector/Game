@@ -2,7 +2,18 @@ import { Body } from './physics.js';
 import { applyMovement } from './movementController.js';
 
 export function updateBotAI(botBody, playerBody, config, dt) {
-    const { moveSpeed, jumpStrength, accelerationFactor, decelerationFactor, jumpVelocityThreshold } = config;
+    const {
+        moveSpeed,
+        jumpStrength,
+        accelerationFactor,
+        decelerationFactor,
+        jumpVelocityThreshold,
+        chaseDistance,
+        jumpHeight,
+        jumpRange,
+        stuckDistance,
+        stuckTime
+    } = config;
 
     if (!botBody.renderData.aiState) {
         botBody.renderData.aiState = {
@@ -19,22 +30,22 @@ export function updateBotAI(botBody, playerBody, config, dt) {
     const dx = playerBody.position.x - botBody.position.x;
     const dy = playerBody.position.y - botBody.position.y;
 
-    if (Math.abs(dx) > 2) {
+    if (Math.abs(dx) > chaseDistance) {
         if (dx < 0) input.moveLeft = true;
         else input.moveRight = true;
     }
 
     const horizontalDistance = Math.abs(dx);
-    const shouldJump = dy < -20 && horizontalDistance < 200;
+    const shouldJump = dy < -jumpHeight && horizontalDistance < jumpRange;
 
-    const isStuck = (Math.abs(botBody.position.x - ai.lastPosX) < 1) && (now - ai.stuckTime > 500);
+    const isStuck = (Math.abs(botBody.position.x - ai.lastPosX) < stuckDistance) && (now - ai.stuckTime > stuckTime);
 
     if ((shouldJump || isStuck) && botBody.renderData.isOnGround && Math.abs(botBody.velocity.y) < jumpVelocityThreshold) {
         input.jumpPressed = true;
         ai.stuckTime = now;
     }
 
-    if (Math.abs(botBody.position.x - ai.lastPosX) >= 1) {
+    if (Math.abs(botBody.position.x - ai.lastPosX) >= stuckDistance) {
         ai.stuckTime = now;
     }
 
