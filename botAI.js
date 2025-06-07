@@ -1,31 +1,104 @@
 import { Body } from './physics.js';
 import { applyMovement } from './movementController.js';
 
-export function updateBotAI(botBody, playerBody, config, dt) {
+function findPlatformForBody(body, platforms) {
+    for (const p of platforms) {
+        if (!p.label.startsWith('platform')) continue;
+        const topY = p.position.y - p.renderData.height / 2;
+        const halfW = p.renderData.width / 2;
+        if (body.position.x >= p.position.x - halfW && body.position.x <= p.position.x + halfW) {
+            if (Math.abs(body.position.y - topY) < 20) {
+                return p;
+            }
+        }
+    }
+    return null;
+}
+
+function buildPlatformGraph(platforms) {
+    const graph = {};
+    const valid = platforms.filter(p => p.label.startsWith('platform'));
+    for (const a of valid) {
+        graph[a.label] = [];
+        for (const b of valid) {
+            if (a === b) continue;
+            const dx = Math.abs(b.position.x - a.position.x);
+            const dy = b.position.y - a.position.y;
+            const maxJump = 220;
+            const maxGap = 260;
+            if (Math.abs(dy) <= maxJump && dx - (a.renderData.width + b.renderData.width)/2 <= maxGap) {
+                graph[a.label].push(b.label);
+            }
+        }
+    }
+    return graph;
+}
+
+function findPath(graph, start, target) {
+    if (!graph[start] || !graph[target]) return null;
+    const queue = [[start]];
+    const visited = new Set([start]);
+    while (queue.length > 0) {
+        const path = queue.shift();
+        const node = path[path.length - 1];
+        if (node === target) return path;
+        for (const n of graph[node]) {
+            if (!visited.has(n)) {
+                visited.add(n);
+                queue.push([...path, n]);
+            }
+        }
+    }
+    return null;
+}
+
+export function updateBotAI(botBody, playerBody, config, dt, platformBodies) {
     const { moveSpeed, jumpStrength, accelerationFactor, decelerationFactor, jumpVelocityThreshold } = config;
 
     if (!botBody.renderData.aiState) {
         botBody.renderData.aiState = {
             lastPosX: botBody.position.x,
-            stuckTime: Date.now()
+            stuckTime: Date.now(),
+            platformGraph: buildPlatformGraph(platformBodies)
         };
     }
 
     const ai = botBody.renderData.aiState;
+    if (!ai.platformGraph) {
+        ai.platformGraph = buildPlatformGraph(platformBodies);
+    }
     const now = Date.now();
 
     const input = { moveLeft: false, moveRight: false, jumpPressed: false };
 
-    const dx = playerBody.position.x - botBody.position.x;
-    const dy = playerBody.position.y - botBody.position.y;
+    const botPlatform = findPlatformForBody(botBody, platformBodies);
+    const playerPlatform = findPlatformForBody(playerBody, platformBodies);
 
+    let targetX = playerBody.position.x;
+    let wantJump = false;
+
+    if (botPlatform && playerPlatform && botPlatform.label !== playerPlatform.label) {
+        const path = findPath(ai.platformGraph, botPlatform.label, playerPlatform.label);
+        if (path && path.length > 1) {
+            const nextLabel = path[1];
+            const nextPlat = platformBodies.find(p => p.label === nextLabel);
+            if (nextPlat) {
+                targetX = nextPlat.position.x;
+                if (nextPlat.position.y < botBody.position.y - 10) {
+                    wantJump = true;
+                }
+            }
+        }
+    }
+
+    const dx = targetX - botBody.position.x;
     if (Math.abs(dx) > 2) {
         if (dx < 0) input.moveLeft = true;
         else input.moveRight = true;
     }
 
     const horizontalDistance = Math.abs(dx);
-    const shouldJump = dy < -20 && horizontalDistance < 200;
+    const shouldJump = wantJump && horizontalDistance < (botPlatform ? botPlatform.renderData.width / 2 + 60 : 200);
 
     const isStuck = (Math.abs(botBody.position.x - ai.lastPosX) < 1) && (now - ai.stuckTime > 500);
 

@@ -114,7 +114,7 @@ import { updateBotAI } from './botAI.js';
                     accelerationFactor,
                     decelerationFactor,
                     jumpVelocityThreshold
-                }, dt);
+                }, dt, platformBodies);
             }
             Engine.update(engine, dt); updateCamera(camera, canvasWidth, canvasHeight, worldWidth, worldHeight, zoomPadding, minZoom, maxZoom, zoomLerpFactor, cameraLerpFactor, playerBodies);
             ctx.fillStyle = pageBackgroundColor; ctx.fillRect(0, 0, canvasWidth, canvasHeight); ctx.save();
