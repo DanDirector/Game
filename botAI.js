@@ -79,7 +79,7 @@ export function updateBotAI(botBody, playerBody, config, dt) {
         botBody,
         input,
         Body,
-        { moveSpeed: moveSpeed * ai.speedMultiplier, jumpStrength, accelerationFactor, decelerationFactor, jumpVelocityThreshold },
+        { moveSpeed, jumpStrength, accelerationFactor, decelerationFactor, jumpVelocityThreshold },
         dt
     );
 }
