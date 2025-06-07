@@ -6,8 +6,8 @@ export function updateBotAI(botBody, playerBody, config, dt) {
 
     if (!botBody.renderData.aiState) {
         botBody.renderData.aiState = {
-            stuckTime: Date.now(),
-            lastPosX: botBody.position.x
+            lastPosX: botBody.position.x,
+            stuckTime: Date.now()
         };
     }
 
@@ -16,27 +16,24 @@ export function updateBotAI(botBody, playerBody, config, dt) {
 
     const input = { moveLeft: false, moveRight: false, jumpPressed: false };
 
-    // Horizontal pursuit
     const dx = playerBody.position.x - botBody.position.x;
+    const dy = playerBody.position.y - botBody.position.y;
+
     if (Math.abs(dx) > 2) {
         if (dx < 0) input.moveLeft = true;
         else input.moveRight = true;
     }
 
-    // Basic platform awareness
-    const dy = playerBody.position.y - botBody.position.y;
     const horizontalDistance = Math.abs(dx);
-    const verticalDistance = Math.abs(dy);
+    const shouldJump = dy < -20 && horizontalDistance < 200;
 
-    const shouldJumpToReach = dy < -20 && horizontalDistance < 200;
     const isStuck = (Math.abs(botBody.position.x - ai.lastPosX) < 1) && (now - ai.stuckTime > 500);
 
-    if ((shouldJumpToReach || isStuck) && botBody.renderData.isOnGround && Math.abs(botBody.velocity.y) < jumpVelocityThreshold) {
+    if ((shouldJump || isStuck) && botBody.renderData.isOnGround && Math.abs(botBody.velocity.y) < jumpVelocityThreshold) {
         input.jumpPressed = true;
         ai.stuckTime = now;
     }
 
-    // Update stuck state
     if (Math.abs(botBody.position.x - ai.lastPosX) >= 1) {
         ai.stuckTime = now;
     }
