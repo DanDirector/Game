@@ -1,11 +1,20 @@
 export function createPlatformData({ worldWidth, worldHeight, boundaryThickness, p1StartX, p2StartX, platformHeight }) {
-  return [
+  // Boundaries around the world
+  const boundaries = [
     { x: worldWidth / 2, y: worldHeight + boundaryThickness / 2 - 10, width: worldWidth, height: boundaryThickness, angle: 0, label: 'platform-ground', visible: true },
     { x: worldWidth / 2, y: -boundaryThickness / 2, width: worldWidth, height: boundaryThickness, angle: 0, label: 'platform-ceiling', visible: false },
     { x: -boundaryThickness / 2, y: worldHeight / 2, width: boundaryThickness, height: worldHeight, angle: 0, label: 'wall-left', visible: false },
-    { x: worldWidth + boundaryThickness / 2, y: worldHeight / 2, width: boundaryThickness, height: worldHeight, angle: 0, label: 'wall-right', visible: false },
+    { x: worldWidth + boundaryThickness / 2, y: worldHeight / 2, width: boundaryThickness, height: worldHeight, angle: 0, label: 'wall-right', visible: false }
+  ];
+
+  // Starting platforms for each player
+  const startPlatforms = [
     { x: p1StartX, y: worldHeight - 150, width: 250 * 2, height: platformHeight, angle: 0, label: 'platform-start-left' },
-    { x: p2StartX, y: worldHeight - 150, width: 250 * 2, height: platformHeight, angle: 0, label: 'platform-start-right' },
+    { x: p2StartX, y: worldHeight - 150, width: 250 * 2, height: platformHeight, angle: 0, label: 'platform-start-right' }
+  ];
+
+  // Remaining mid and upper level platforms
+  const midPlatforms = [
     { x: 400, y: worldHeight - 250, width: 200, height: platformHeight, angle: 0, label: 'platform-low-far-left' },
     { x: worldWidth - 400, y: worldHeight - 250, width: 200, height: platformHeight, angle: 0, label: 'platform-low-far-right' },
     { x: worldWidth / 2, y: worldHeight - 350, width: 400 * 2, height: platformHeight, angle: 0, label: 'platform-low-center' },
@@ -26,6 +35,8 @@ export function createPlatformData({ worldWidth, worldHeight, boundaryThickness,
     { x: 800, y: worldHeight - 1600, width: 150 * 2, height: platformHeight, angle: 0, label: 'platform-top-left' },
     { x: worldWidth - 800, y: worldHeight - 1600, width: 150 * 2, height: platformHeight, angle: 0, label: 'platform-top-right' }
   ];
+
+  return [...boundaries, ...startPlatforms, ...midPlatforms];
 }
 
 export function getPlatformCoords(platformBodies, label) {
