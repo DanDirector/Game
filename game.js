@@ -1,7 +1,15 @@
     document.addEventListener('DOMContentLoaded', () => {
 
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
+        const menu = document.getElementById('startScreen');
+        const startButton = document.getElementById('startButton');
+        startButton.addEventListener('click', () => {
+            menu.style.display = 'none';
+            initGame();
+        });
+
+        function initGame() {
+            const canvas = document.getElementById('gameCanvas');
+            const ctx = canvas.getContext('2d');
 
         // --- Matter.js Модули ---
         const Engine = Matter.Engine; const World = Matter.World; const Bodies = Matter.Bodies;
@@ -208,4 +216,5 @@
         }
 
         requestAnimationFrame(gameLoop);
+        }
     });
