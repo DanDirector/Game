@@ -18,7 +18,7 @@ function findPlatformForBody(body, platforms) {
     return null;
 }
 
-function findReachablePlatformAbove(body, platforms, maxJump = 220) {
+function findReachablePlatformAbove(body, platforms, maxJump = 220, targetX = null) {
     const bottomY = body.bounds.max.y;
     let closest = null;
     let bestDy = Infinity;
@@ -26,7 +26,8 @@ function findReachablePlatformAbove(body, platforms, maxJump = 220) {
         if (!p.label.startsWith('platform')) continue;
         const topY = p.position.y - p.renderData.height / 2;
         if (topY <= bottomY) continue; // only consider platforms above body
-        const dx = Math.abs(body.position.x - p.position.x);
+        const refX = targetX !== null ? targetX : body.position.x;
+        const dx = Math.abs(refX - p.position.x);
         const halfW = p.renderData.width / 2;
         if (dx <= halfW + 30) {
             const dy = topY - bottomY;
@@ -100,10 +101,12 @@ export function updateBotAI(botBody, playerBody, config, dt, platformBodies) {
 
     let targetX = playerBody.position.x;
     let wantJump = false;
+    let targetPlatform = null;
 
     if (!botPlatform && playerPlatform) {
-        const above = findReachablePlatformAbove(botBody, platformBodies);
+        const above = findReachablePlatformAbove(botBody, platformBodies, 220, playerBody.position.x);
         if (above) {
+            targetPlatform = above;
             targetX = above.position.x;
             wantJump = true;
         }
@@ -113,6 +116,7 @@ export function updateBotAI(botBody, playerBody, config, dt, platformBodies) {
             const nextLabel = path[1];
             const nextPlat = platformBodies.find(p => p.label === nextLabel);
             if (nextPlat) {
+                targetPlatform = nextPlat;
                 targetX = nextPlat.position.x;
                 if (nextPlat.position.y < botBody.position.y - 10) {
                     wantJump = true;
@@ -128,9 +132,12 @@ export function updateBotAI(botBody, playerBody, config, dt, platformBodies) {
     }
 
     const horizontalDistance = Math.abs(dx);
-    const shouldJump = wantJump && horizontalDistance < (botPlatform ? botPlatform.renderData.width / 2 + 60 : 200);
+    const closeEnough = targetPlatform ?
+        horizontalDistance < targetPlatform.renderData.width / 2 + 40 :
+        horizontalDistance < 120;
+    const shouldJump = wantJump && closeEnough;
 
-    const isStuck = (Math.abs(botBody.position.x - ai.lastPosX) < 1) && (now - ai.stuckTime > 500);
+    const isStuck = (Math.abs(botBody.position.x - ai.lastPosX) < 1) && (now - ai.stuckTime > 700);
 
     if ((shouldJump || isStuck) && botBody.renderData.isOnGround && Math.abs(botBody.velocity.y) < jumpVelocityThreshold) {
         input.jumpPressed = true;
