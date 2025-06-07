@@ -4,14 +4,14 @@ import { applyMovement } from './movementController.js';
 export function updateBotAI(botBody, playerBody, config, dt) {
     const { moveSpeed, jumpStrength, accelerationFactor, decelerationFactor, jumpVelocityThreshold } = config;
 
-    if (!botBody.renderData.aiState) {
-        botBody.renderData.aiState = {
+    if (!botBody.aiState) {
+        botBody.aiState = {
             lastPosX: botBody.position.x,
             stuckTime: Date.now()
         };
     }
 
-    const ai = botBody.renderData.aiState;
+    const ai = botBody.aiState;
     const now = Date.now();
 
     const input = { moveLeft: false, moveRight: false, jumpPressed: false };
