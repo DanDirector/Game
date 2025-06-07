@@ -40,6 +40,17 @@ function findReachablePlatformAbove(body, platforms, maxJump = 220, targetX = nu
     return closest;
 }
 
+function shouldJumpTowardsPlatform(body, from, to) {
+    if (!from || !to) return false;
+    const direction = Math.sign(to.position.x - from.position.x) || 1;
+    const edgeX = from.position.x + direction * from.renderData.width / 2;
+    const dx = Math.abs(body.position.x - edgeX);
+    const gap = Math.abs(to.position.x - from.position.x) -
+        (from.renderData.width + to.renderData.width) / 2;
+    const verticalDiff = from.position.y - to.position.y;
+    return dx < 20 && (verticalDiff > 10 || gap > 20);
+}
+
 function buildPlatformGraph(platforms) {
     const graph = {};
     const valid = platforms.filter(p => p.label.startsWith('platform'));
@@ -118,9 +129,7 @@ export function updateBotAI(botBody, playerBody, config, dt, platformBodies) {
             if (nextPlat) {
                 targetPlatform = nextPlat;
                 targetX = nextPlat.position.x;
-                if (nextPlat.position.y < botBody.position.y - 10) {
-                    wantJump = true;
-                }
+                wantJump = shouldJumpTowardsPlatform(botBody, botPlatform, nextPlat);
             }
         }
     }
@@ -132,9 +141,13 @@ export function updateBotAI(botBody, playerBody, config, dt, platformBodies) {
     }
 
     const horizontalDistance = Math.abs(dx);
-    const closeEnough = targetPlatform ?
-        horizontalDistance < targetPlatform.renderData.width / 2 + 40 :
-        horizontalDistance < 120;
+    let closeEnough;
+    if (targetPlatform) {
+        const margin = targetPlatform.renderData.width / 2 + 40;
+        closeEnough = horizontalDistance < margin || wantJump;
+    } else {
+        closeEnough = horizontalDistance < 120;
+    }
     const shouldJump = wantJump && closeEnough;
 
     const isStuck = (Math.abs(botBody.position.x - ai.lastPosX) < 1) && (now - ai.stuckTime > 700);
