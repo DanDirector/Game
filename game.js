@@ -1,4 +1,7 @@
 import { createPlatformData, getPlatformCoords } from './platforms.js';
+import { initControls, handleInput } from './controls.js';
+import { Engine, World, Bodies, Body, initPhysics, setupCollisionEvents } from "./physics.js";
+import { drawParallaxBackground, drawPlatforms, drawDecorations, drawPlayer, drawFlash, updateCamera } from './render.js';
 
     document.addEventListener('DOMContentLoaded', () => {
 
@@ -14,8 +17,8 @@ import { createPlatformData, getPlatformCoords } from './platforms.js';
             const ctx = canvas.getContext('2d');
 
         // --- Matter.js Модули ---
-        const Engine = Matter.Engine; const World = Matter.World; const Bodies = Matter.Bodies;
-        const Body = Matter.Body; const Events = Matter.Events; const Query = Matter.Query;
+        const { engine, world } = initPhysics();
+        initControls();
 
         // --- Размеры ---
         const canvasWidth = canvas.width; const canvasHeight = canvas.height;
@@ -53,8 +56,6 @@ import { createPlatformData, getPlatformCoords } from './platforms.js';
         const platformData = createPlatformData({ worldWidth, worldHeight, boundaryThickness, p1StartX, p2StartX, platformHeight });
 
         // --- Инициализация Matter.js ---
-        const engine = Engine.create(); const world = engine.world;
-        engine.world.gravity.y = 1.4;
 
         // --- Создание игроков ---
         const playerBodies = [];
@@ -79,127 +80,12 @@ import { createPlatformData, getPlatformCoords } from './platforms.js';
         const platformBodies = []; const platformOptions = { isStatic: true, friction: 0.5, frictionStatic: 0.8, restitution: 0 };
         platformData.forEach((data) => { const platformBody = Bodies.rectangle(data.x, data.y, data.width, data.height, { ...platformOptions, angle: data.angle, label: data.label }); platformBody.renderData = { width: data.width, height: data.height, colorBase: colors.platformBase, colorTop: colors.platformEdge, visible: data.visible !== false }; platformBodies.push(platformBody); });
         World.add(world, platformBodies);
+        setupCollisionEvents({ engine, playerBodies, tagCooldownTime, groundCheckThreshold, jumpStrength, onTag: () => { flashOpacity = 0.3; console.log("Tag! Roles swapped. Flash activated."); } });
 
         // --- Декорации (без изменений) ---
         const decorations = [ /* ... тот же decorations ... */ { type: 'palm', platformLabel: 'platform-start-left', offsetX: -150 }, { type: 'palm', platformLabel: 'platform-start-right', offsetX: 150 }, { type: 'palm', platformLabel: 'platform-low-far-left', offsetX: 0 }, { type: 'palm', platformLabel: 'platform-low-far-right', offsetX: 0 }, { type: 'palm', platformLabel: 'platform-low-center', offsetX: -250 }, { type: 'palm', platformLabel: 'platform-low-center', offsetX: 250 }, { type: 'palm', platformLabel: 'platform-mid-center-left', offsetX: -100 }, { type: 'palm', platformLabel: 'platform-mid-center-right', offsetX: 100 }, { type: 'palm', platformLabel: 'platform-upper-mid-center', offsetX: -200 }, { type: 'palm', platformLabel: 'platform-upper-mid-center', offsetX: 200 }, { type: 'palm', platformLabel: 'platform-ground', offsetX: -worldWidth/2 + 250}, { type: 'palm', platformLabel: 'platform-ground', offsetX: worldWidth/2 - 250}, ];
 
         // --- Функции (без изменений, кроме handleInput) ---
-        const keysPressed = {}; document.addEventListener('keydown', (event) => { keysPressed[event.code] = true; }); document.addEventListener('keyup', (event) => { keysPressed[event.code] = false; });
-        function drawRoundRect(ctx, x, y, width, height, radius) { /* ... */ if (width < 2 * radius) radius = width / 2; if (height < 2 * radius) radius = height / 2; ctx.beginPath(); ctx.moveTo(x + radius, y); ctx.arcTo(x + width, y, x + width, y + height, radius); ctx.arcTo(x + width, y + height, x, y + height, radius); ctx.arcTo(x, y + height, x, y, radius); ctx.arcTo(x, y, x + width, y, radius); ctx.closePath(); ctx.fill(); }
-        function drawParallaxBackground() { /* ... */ const camOffsetX = camera.focusX * parallaxFactor; const camOffsetY = camera.focusY * parallaxFactor * 0.5; ctx.save(); ctx.translate(-camOffsetX, -camOffsetY); const hillBaseY = worldHeight; ctx.fillStyle = colors.hillColorFar; ctx.beginPath(); ctx.moveTo(-worldWidth, hillBaseY); for (let x = -worldWidth; x < worldWidth * 2; x += 150) { const y = hillBaseY - (worldHeight * 0.1) - Math.sin(x * 0.0015 / 2 + 1) * (worldHeight * 0.05); ctx.lineTo(x, y); } ctx.lineTo(worldWidth * 2, hillBaseY); ctx.closePath(); ctx.fill(); ctx.fillStyle = colors.hillColorNear; ctx.beginPath(); ctx.moveTo(-worldWidth, hillBaseY); for (let x = -worldWidth; x < worldWidth * 2; x += 100) { const y = hillBaseY - (worldHeight * 0.05) - Math.cos(x * 0.002 / 2) * (worldHeight * 0.03); ctx.lineTo(x, y); } ctx.lineTo(worldWidth * 2, hillBaseY); ctx.closePath(); ctx.fill(); ctx.restore(); }
-        function drawPlatforms() { /* ... */ const edgeHeight = 5; platformBodies.forEach(platformBody => { if (!platformBody.renderData.visible) return; const pos = platformBody.position; const angle = platformBody.angle; const width = platformBody.renderData.width; const height = platformBody.renderData.height; ctx.save(); ctx.translate(pos.x, pos.y); ctx.rotate(angle); ctx.fillStyle = platformBody.renderData.colorBase; ctx.fillRect(-width / 2, -height / 2, width, height); ctx.fillStyle = platformBody.renderData.colorTop; ctx.fillRect(-width / 2, -height / 2, width, edgeHeight); ctx.restore(); }); }
-        function drawDecorations() { /* ... */ decorations.forEach(deco => { const platformCoords = getPlatformCoords(platformBodies, deco.platformLabel); if (platformCoords) { const x = platformCoords.x + deco.offsetX; const y = platformCoords.y; if (deco.type === 'palm') { drawPalm(ctx, x, y, 1.2); } } }); }
-        function drawPalm(targetCtx, baseX, baseY, scale = 1) { /* ... */ const trunkWidth = 12 * scale; const trunkHeight = 70 * scale; const numLeaves = 7; const leafLength = 45 * scale; const leafWidth = 18 * scale; const topY = baseY - trunkHeight; targetCtx.fillStyle = colors.palmTrunk; targetCtx.fillRect(baseX - trunkWidth / 2, baseY - trunkHeight, trunkWidth, trunkHeight); targetCtx.fillStyle = colors.palmLeaves; for (let i = 0; i < numLeaves; i++) { targetCtx.save(); targetCtx.translate(baseX, topY); const angle = (i / (numLeaves -1)) * Math.PI * 1.4 - Math.PI * 0.7; targetCtx.rotate(angle); targetCtx.beginPath(); targetCtx.ellipse(0, leafLength / 2, leafWidth / 2, leafLength / 2, 0, 0, Math.PI * 2); targetCtx.fill(); targetCtx.restore(); } }
-        function drawPlayer(playerBody, deltaTime) { /* ... */ const pos = playerBody.position; const data = playerBody.renderData; const headHeight = playerHeight * 0.4; const eyeRadius = playerWidth * 0.09; const pupilRadius = eyeRadius * 0.6; const eyeOffsetY = playerHeight * 0.18; const headbandHeight = playerHeight * 0.18; const legWidth = playerWidth * 0.2; const legHeight = playerHeight * 0.25; const legBaseY = playerHeight / 2 - legHeight; const eyeOffsetXBase = playerWidth * 0.2; let pupilOffsetX = 0; if (data.facingDirection === 'left') { pupilOffsetX = -eyeRadius * 0.4; } else if (data.facingDirection === 'right') { pupilOffsetX = eyeRadius * 0.4; } const legCycleDuration = legAnimationSpeed * 2; let legOffsetY1 = 0; let legOffsetY2 = 0; if (data.isMovingHorizontally && data.isOnGround) { data.legAnimationTimer = (data.legAnimationTimer + deltaTime) % legCycleDuration; const phase = (data.legAnimationTimer / legCycleDuration) * Math.PI * 2; legOffsetY1 = Math.sin(phase) * legHeight * 0.3; legOffsetY2 = Math.sin(phase + Math.PI) * legHeight * 0.3; } else { data.legAnimationTimer = 0; } ctx.save(); ctx.translate(pos.x, pos.y); const legDrawY = legBaseY; const legX1 = -playerWidth * 0.2; const legX2 = playerWidth * 0.2; ctx.fillStyle = colors.playerBody; drawRoundRect(ctx, legX1 - legWidth / 2, legDrawY + legOffsetY1, legWidth, legHeight, legWidth/3); drawRoundRect(ctx, legX2 - legWidth / 2, legDrawY + legOffsetY2, legWidth, legHeight, legWidth/3); const bodyDrawX = -playerWidth / 2; const bodyDrawY = -playerHeight / 2; ctx.fillStyle = colors.playerBody; drawRoundRect(ctx, bodyDrawX, bodyDrawY, playerWidth, playerHeight, playerCornerRadius); ctx.fillStyle = data.headbandColor; ctx.fillRect(bodyDrawX, bodyDrawY + headHeight * 0.15, playerWidth, headbandHeight); const eyeCenterY = bodyDrawY + eyeOffsetY; const eyeCenterX1 = eyeOffsetXBase * (data.facingDirection === 'left' ? 1.1 : 0.9); const eyeCenterX2 = -eyeOffsetXBase * (data.facingDirection === 'right' ? 1.1 : 0.9); const eyeDrawX1 = data.facingDirection === 'left' ? eyeCenterX2 : eyeCenterX1; const eyeDrawX2 = data.facingDirection === 'left' ? eyeCenterX1 : eyeCenterX2; ctx.fillStyle = colors.eyeWhite; ctx.beginPath(); ctx.arc(eyeDrawX1, eyeCenterY, eyeRadius, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(eyeDrawX2, eyeCenterY, eyeRadius, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = colors.eyePupil; ctx.beginPath(); ctx.arc(eyeDrawX1 + pupilOffsetX, eyeCenterY, pupilRadius, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(eyeDrawX2 + pupilOffsetX, eyeCenterY, pupilRadius, 0, Math.PI * 2); ctx.fill(); if (data.isTagger) { const indicatorY = bodyDrawY - 12; const indicatorSize = 8; ctx.fillStyle = data.tagTimer > 0 ? 'rgba(241, 196, 15, 0.5)' : colors.indicator; ctx.beginPath(); ctx.moveTo(0, indicatorY - indicatorSize * 0.8); ctx.lineTo(-indicatorSize, indicatorY + indicatorSize * 0.6); ctx.lineTo(indicatorSize, indicatorY + indicatorSize * 0.6); ctx.closePath(); ctx.fill(); if (data.tagTimer > 0) { const progressBarY = bodyDrawY - 20; const progressBarHeight = 4; const progress = 1 - data.tagTimer / tagCooldownTime; ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'; ctx.fillRect(bodyDrawX, progressBarY, playerWidth, progressBarHeight); ctx.fillStyle = colors.indicator; ctx.fillRect(bodyDrawX, progressBarY, playerWidth * progress, progressBarHeight); } } ctx.restore(); }
-        function drawFlash() { /* ... */
-            if (flashOpacity > 0) {
-                ctx.fillStyle = `rgba(255, 255, 0, ${flashOpacity.toFixed(2)})`;
-                ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-                flashOpacity -= 0.05;
-                if (flashOpacity < 0) flashOpacity = 0;
-            }
-        }
-        function updateCamera() { /* ... */ const p1Pos = playerBodies[0].position; const p2Pos = playerBodies[1].position; const focusTargetX = (p1Pos.x + p2Pos.x) / 2; const focusTargetY = (p1Pos.y + p2Pos.y) / 2; const distX = Math.abs(p1Pos.x - p2Pos.x); const distY = Math.abs(p1Pos.y - p2Pos.y); const requiredWidth = distX + zoomPadding * 2; const requiredHeight = distY + zoomPadding * 2; const zoomTargetX = canvasWidth / Math.max(1, requiredWidth); const zoomTargetY = canvasHeight / Math.max(1, requiredHeight); let targetZoom = Math.min(zoomTargetX, zoomTargetY); camera.targetZoom = Math.max(minZoom, Math.min(maxZoom, targetZoom)); camera.zoom += (camera.targetZoom - camera.zoom) * zoomLerpFactor; camera.targetFocusX = focusTargetX; camera.targetFocusY = focusTargetY; camera.focusX += (camera.targetFocusX - camera.focusX) * cameraLerpFactor; camera.focusY += (camera.targetFocusY - camera.focusY) * cameraLerpFactor; const viewWidth = canvasWidth / camera.zoom; const viewHeight = canvasHeight / camera.zoom; camera.focusX = Math.max(viewWidth / 2, Math.min(worldWidth - viewWidth / 2, camera.focusX)); camera.focusY = Math.max(viewHeight / 2, Math.min(worldHeight - viewHeight / 2, camera.focusY)); }
-
-        // *** ИЗМЕНЕНО: handleInput с плавной скоростью ***
-        function handleInput() {
-            playerBodies.forEach(playerBody => {
-                const data = playerBody.renderData;
-                const currentVelocity = playerBody.velocity;
-                let targetVx = 0; // Целевая горизонтальная скорость
-
-                data.isMovingHorizontally = false; // Сбрасываем флаг движения
-
-                // Определяем целевую скорость
-                if (keysPressed[data.controls.left]) {
-                    targetVx = -moveSpeed; data.facingDirection = 'left'; data.isMovingHorizontally = true;
-                }
-                if (keysPressed[data.controls.right]) {
-                    targetVx = moveSpeed; data.facingDirection = 'right'; data.isMovingHorizontally = true;
-                }
-
-                // Плавно интерполируем текущую скорость к целевой
-                let newVx;
-                if (targetVx !== 0) { // Если есть нажатие (ускорение)
-                    newVx = currentVelocity.x + (targetVx - currentVelocity.x) * accelerationFactor;
-                } else { // Если нет нажатия (замедление/торможение)
-                    newVx = currentVelocity.x + (targetVx - currentVelocity.x) * decelerationFactor;
-                }
-
-                // Применяем новую горизонтальную скорость
-                // Вертикальную скорость берем текущую, ее меняет только прыжок и гравитация
-                Body.setVelocity(playerBody, { x: newVx, y: currentVelocity.y });
-
-                // Прыжок (логика с hasJumpedThisPress и velocity check остается)
-                if (keysPressed[data.controls.up]) {
-                    if (data.isOnGround && !data.hasJumpedThisPress && Math.abs(currentVelocity.y) < jumpVelocityThreshold) {
-                        // Устанавливаем новую скорость, не изменяя горизонтальную (которую мы только что плавно изменили)
-                        Body.setVelocity(playerBody, { x: playerBody.velocity.x, y: -jumpStrength });
-                        data.isOnGround = false;
-                        data.hasJumpedThisPress = true;
-                    }
-                } else {
-                    data.hasJumpedThisPress = false;
-                }
-            });
-        }
-
-
-        // --- Логика перед обновлением движка (Проверка земли через нормали v3.8) ---
-        Events.on(engine, 'beforeUpdate', (event) => {
-            playerBodies.forEach(playerBody => {
-                playerBody.renderData.isOnGround = false; // Сброс
-            });
-            const activePairs = engine.pairs.list;
-            activePairs.forEach(pair => {
-                if (!pair.isActive) return;
-                let playerBody = null; let otherBody = null;
-                if (pair.bodyA.label.startsWith('player-')) { playerBody = pair.bodyA; otherBody = pair.bodyB; }
-                else if (pair.bodyB.label.startsWith('player-')) { playerBody = pair.bodyB; otherBody = pair.bodyA; }
-                else { return; }
-                if (!(otherBody.label.startsWith('platform-') || otherBody.label.startsWith('wall-'))) { return; }
-                if (pair.collision && pair.collision.normal) {
-                    const normal = pair.collision.normal;
-                    const isGroundContact = (playerBody === pair.bodyA && normal.y < -groundCheckThreshold) || (playerBody === pair.bodyB && normal.y > groundCheckThreshold);
-                    if (isGroundContact) { playerBody.renderData.isOnGround = true; }
-                }
-            });
-            // --- Проверка тега ---
-            const p1 = playerBodies[0]; const p2 = playerBodies[1]; const p1Data = p1.renderData; const p2Data = p2.renderData;
-            const collisionCheck = Query.collides(p1, [p2]);
-             if (collisionCheck.length > 0) {
-                 if (p1Data.isTagger !== p2Data.isTagger && p1Data.tagTimer <= 0 && p2Data.tagTimer <= 0) {
-                     p1Data.isTagger = !p1Data.isTagger; p2Data.isTagger = !p2Data.isTagger;
-                     p1Data.tagTimer = tagCooldownTime; p2Data.tagTimer = tagCooldownTime;
-                     flashOpacity = 0.3; console.log("Tag! Roles swapped. Flash activated.");
-                 }
-             }
-        });
-
-        // --- Обработчик collisionStart для смягчения углов (без изменений v3.8.4) ---
-        Events.on(engine, 'collisionStart', (event) => {
-            const pairs = event.pairs;
-            pairs.forEach(pair => {
-                let playerBody = null; let otherBody = null;
-                if (pair.bodyA.label.startsWith('player-')) { playerBody = pair.bodyA; otherBody = pair.bodyB; }
-                else if (pair.bodyB.label.startsWith('player-')) { playerBody = pair.bodyB; otherBody = pair.bodyA; }
-                else { return; }
-                if (!(otherBody.label.startsWith('platform-') || otherBody.label.startsWith('wall-'))) { return; }
-                if (pair.collision && pair.collision.normal) {
-                    const normal = pair.collision.normal;
-                    if (Math.abs(normal.y) < 0.8) {
-                        const velocity = playerBody.velocity;
-                        if (velocity.y < 0) { // Только если движется вверх
-                            const maxUpwardVelocity = -jumpStrength;
-                            if (velocity.y < maxUpwardVelocity) {
-                                console.log(`Corner velocity capped (moving up): ${velocity.y.toFixed(2)} -> ${maxUpwardVelocity}`);
-                                Body.setVelocity(playerBody, { x: velocity.x, y: maxUpwardVelocity });
-                            }
-                        }
-                    }
-                }
-            });
-        });
 
 
         // --- Игровой цикл ---
@@ -209,13 +95,18 @@ import { createPlatformData, getPlatformCoords } from './platforms.js';
             playerBodies.forEach(playerBody => {
                 const data = playerBody.renderData; if (data.tagTimer > 0) { data.tagTimer -= dt; if (data.tagTimer < 0) { data.tagTimer = 0; } }
             });
-            handleInput(); Engine.update(engine, dt); updateCamera();
+            handleInput({ playerBodies, Body, moveSpeed, jumpStrength, accelerationFactor, decelerationFactor, jumpVelocityThreshold });
+            Engine.update(engine, dt); updateCamera(camera, canvasWidth, canvasHeight, worldWidth, worldHeight, zoomPadding, minZoom, maxZoom, zoomLerpFactor, cameraLerpFactor, playerBodies);
             ctx.fillStyle = pageBackgroundColor; ctx.fillRect(0, 0, canvasWidth, canvasHeight); ctx.save();
             ctx.translate(canvasWidth / 2, canvasHeight / 2); ctx.scale(camera.zoom, camera.zoom); ctx.translate(-camera.focusX, -camera.focusY);
             const skyGradient = ctx.createLinearGradient(0, 0, 0, worldHeight); skyGradient.addColorStop(0, colors.backgroundStart); skyGradient.addColorStop(1, colors.backgroundEnd);
             ctx.fillStyle = skyGradient; ctx.fillRect(0, 0, worldWidth, worldHeight);
-            drawParallaxBackground(); drawDecorations(); drawPlatforms(); playerBodies.forEach(pBody => drawPlayer(pBody, dt));
-            ctx.restore(); drawFlash();
+            drawParallaxBackground(ctx, camera, worldWidth, worldHeight, colors, parallaxFactor);
+            drawDecorations(ctx, decorations, platformBodies, getPlatformCoords, colors);
+            drawPlatforms(ctx, platformBodies, colors);
+            playerBodies.forEach(pBody => drawPlayer(ctx, pBody, dt, colors, { playerHeight, playerWidth, playerCornerRadius, legAnimationSpeed, tagCooldownTime }));
+            ctx.restore();
+            drawFlash(ctx, canvasWidth, canvasHeight, () => flashOpacity, op => { flashOpacity = op; });
             requestAnimationFrame(gameLoop);
         }
 
