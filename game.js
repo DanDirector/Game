@@ -2,17 +2,28 @@ import { createPlatformData, getPlatformCoords } from './platforms.js';
 import { initControls, handleInput } from './controls.js';
 import { Engine, World, Bodies, Body, initPhysics, setupCollisionEvents } from "./physics.js";
 import { drawParallaxBackground, drawPlatforms, drawDecorations, drawPlayer, drawFlash, updateCamera } from './render.js';
+import { initGame, isSinglePlayer } from './initGame.js';
+import { updateBotAI } from './botAI.js';
 
     document.addEventListener('DOMContentLoaded', () => {
 
         const menu = document.getElementById('startScreen');
-        const startButton = document.getElementById('startButton');
-        startButton.addEventListener('click', () => {
+        const singleButton = document.getElementById('singleButton');
+        const twoButton = document.getElementById('twoButton');
+
+        singleButton.addEventListener('click', () => {
             menu.style.display = 'none';
-            initGame();
+            initGame('single');
+            startGame();
         });
 
-        function initGame() {
+        twoButton.addEventListener('click', () => {
+            menu.style.display = 'none';
+            initGame('two');
+            startGame();
+        });
+
+        function startGame() {
             const canvas = document.getElementById('gameCanvas');
             const ctx = canvas.getContext('2d');
 
@@ -96,6 +107,14 @@ import { drawParallaxBackground, drawPlatforms, drawDecorations, drawPlayer, dra
                 const data = playerBody.renderData; if (data.tagTimer > 0) { data.tagTimer -= dt; if (data.tagTimer < 0) { data.tagTimer = 0; } }
             });
             handleInput({ playerBodies, Body, moveSpeed, jumpStrength, accelerationFactor, decelerationFactor, jumpVelocityThreshold });
+            if (isSinglePlayer) {
+                updateBotAI(playerBodies[1], playerBodies[0], {
+                    moveSpeed,
+                    jumpStrength,
+                    accelerationFactor,
+                    jumpVelocityThreshold
+                });
+            }
             Engine.update(engine, dt); updateCamera(camera, canvasWidth, canvasHeight, worldWidth, worldHeight, zoomPadding, minZoom, maxZoom, zoomLerpFactor, cameraLerpFactor, playerBodies);
             ctx.fillStyle = pageBackgroundColor; ctx.fillRect(0, 0, canvasWidth, canvasHeight); ctx.save();
             ctx.translate(canvasWidth / 2, canvasHeight / 2); ctx.scale(camera.zoom, camera.zoom); ctx.translate(-camera.focusX, -camera.focusY);
