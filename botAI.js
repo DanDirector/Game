@@ -2,12 +2,15 @@ import { Body } from './physics.js';
 import { applyMovement } from './movementController.js';
 
 function findPlatformForBody(body, platforms) {
+    const bottomY = body.bounds.max.y;
+    const halfBodyW = (body.bounds.max.x - body.bounds.min.x) / 2;
     for (const p of platforms) {
         if (!p.label.startsWith('platform')) continue;
         const topY = p.position.y - p.renderData.height / 2;
         const halfW = p.renderData.width / 2;
-        if (body.position.x >= p.position.x - halfW && body.position.x <= p.position.x + halfW) {
-            if (Math.abs(body.position.y - topY) < 20) {
+        if (Math.abs(bottomY - topY) <= 6) {
+            if (body.position.x + halfBodyW > p.position.x - halfW &&
+                body.position.x - halfBodyW < p.position.x + halfW) {
                 return p;
             }
         }
@@ -16,16 +19,17 @@ function findPlatformForBody(body, platforms) {
 }
 
 function findReachablePlatformAbove(body, platforms, maxJump = 220) {
+    const bottomY = body.bounds.max.y;
     let closest = null;
     let bestDy = Infinity;
     for (const p of platforms) {
         if (!p.label.startsWith('platform')) continue;
         const topY = p.position.y - p.renderData.height / 2;
-        if (topY <= body.position.y) continue; // only consider platforms above
+        if (topY <= bottomY) continue; // only consider platforms above body
         const dx = Math.abs(body.position.x - p.position.x);
         const halfW = p.renderData.width / 2;
         if (dx <= halfW + 30) {
-            const dy = topY - body.position.y;
+            const dy = topY - bottomY;
             if (dy <= maxJump && dy < bestDy) {
                 bestDy = dy;
                 closest = p;
