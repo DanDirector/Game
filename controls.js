@@ -10,9 +10,12 @@ export function initControls() {
 }
 
 import { applyMovement } from './movementController.js';
+import { isSinglePlayer } from './initGame.js';
 
 export function handleInput({ playerBodies, Body, moveSpeed, jumpStrength, accelerationFactor, decelerationFactor, jumpVelocityThreshold, dt }) {
     playerBodies.forEach(playerBody => {
+        if (isSinglePlayer && playerBody.renderData.id === 1) return;
+
         const data = playerBody.renderData;
         const input = {
             moveLeft: !!keysPressed[data.controls.left],
