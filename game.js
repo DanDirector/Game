@@ -3,6 +3,7 @@ import { initControls, handleInput } from './controls.js';
 import { Engine, World, Bodies, Body, initPhysics, setupCollisionEvents } from "./physics.js";
 import { drawParallaxBackground, drawPlatforms, drawDecorations, drawPlayer, drawFlash, updateCamera } from './render.js';
 import { updateBotAI } from './botAI.js';
+import { isSinglePlayer } from './initGame.js';
 
     document.addEventListener('DOMContentLoaded', () => {
 
@@ -97,7 +98,14 @@ import { updateBotAI } from './botAI.js';
                 const data = playerBody.renderData; if (data.tagTimer > 0) { data.tagTimer -= dt; if (data.tagTimer < 0) { data.tagTimer = 0; } }
             });
             handleInput({ playerBodies, Body, moveSpeed, jumpStrength, accelerationFactor, decelerationFactor, jumpVelocityThreshold });
-            updateBotAI(playerBodies[1], playerBodies[0], { moveSpeed, jumpStrength, accelerationFactor, jumpVelocityThreshold });
+            if (isSinglePlayer) {
+                updateBotAI(playerBodies[1], playerBodies[0], {
+                    moveSpeed,
+                    jumpStrength,
+                    accelerationFactor,
+                    jumpVelocityThreshold
+                });
+            }
             Engine.update(engine, dt); updateCamera(camera, canvasWidth, canvasHeight, worldWidth, worldHeight, zoomPadding, minZoom, maxZoom, zoomLerpFactor, cameraLerpFactor, playerBodies);
             ctx.fillStyle = pageBackgroundColor; ctx.fillRect(0, 0, canvasWidth, canvasHeight); ctx.save();
             ctx.translate(canvasWidth / 2, canvasHeight / 2); ctx.scale(camera.zoom, camera.zoom); ctx.translate(-camera.focusX, -camera.focusY);
