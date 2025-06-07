@@ -15,6 +15,26 @@ function findPlatformForBody(body, platforms) {
     return null;
 }
 
+function findReachablePlatformAbove(body, platforms, maxJump = 220) {
+    let closest = null;
+    let bestDy = Infinity;
+    for (const p of platforms) {
+        if (!p.label.startsWith('platform')) continue;
+        const topY = p.position.y - p.renderData.height / 2;
+        if (topY <= body.position.y) continue; // only consider platforms above
+        const dx = Math.abs(body.position.x - p.position.x);
+        const halfW = p.renderData.width / 2;
+        if (dx <= halfW + 30) {
+            const dy = topY - body.position.y;
+            if (dy <= maxJump && dy < bestDy) {
+                bestDy = dy;
+                closest = p;
+            }
+        }
+    }
+    return closest;
+}
+
 function buildPlatformGraph(platforms) {
     const graph = {};
     const valid = platforms.filter(p => p.label.startsWith('platform'));
@@ -77,7 +97,13 @@ export function updateBotAI(botBody, playerBody, config, dt, platformBodies) {
     let targetX = playerBody.position.x;
     let wantJump = false;
 
-    if (botPlatform && playerPlatform && botPlatform.label !== playerPlatform.label) {
+    if (!botPlatform && playerPlatform) {
+        const above = findReachablePlatformAbove(botBody, platformBodies);
+        if (above) {
+            targetX = above.position.x;
+            wantJump = true;
+        }
+    } else if (botPlatform && playerPlatform && botPlatform.label !== playerPlatform.label) {
         const path = findPath(ai.platformGraph, botPlatform.label, playerPlatform.label);
         if (path && path.length > 1) {
             const nextLabel = path[1];
