@@ -53,6 +53,18 @@ export function updateBotAI(botBody, playerBody, config, dt, { matrix }) {
         if (dist < CELL_SIZE * 0.3) {
             ai.pathIndex++;
         }
+    } else {
+        const dx = playerBody.position.x - botBody.position.x;
+        const dy = playerBody.position.y - botBody.position.y;
+
+        if (Math.abs(dx) > 2) {
+            if (dx < 0) input.moveLeft = true;
+            else input.moveRight = true;
+        }
+
+        if (dy < -CELL_SIZE * 0.2 && botBody.renderData.isOnGround && Math.abs(botBody.velocity.y) < jumpVelocityThreshold) {
+            input.jumpPressed = true;
+        }
     }
 
     const isStuck = (Math.abs(botBody.position.x - ai.lastPosX) < 1) && (now - ai.stuckTime > 500);

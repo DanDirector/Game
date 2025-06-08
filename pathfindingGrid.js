@@ -3,11 +3,12 @@ export const CELL_SIZE = 50;
 export function buildMatrix(platformData, worldWidth, worldHeight) {
     const rows = Math.ceil(worldHeight / CELL_SIZE);
     const cols = Math.ceil(worldWidth / CELL_SIZE);
-    const matrix = Array.from({ length: rows }, () => Array(cols).fill(1));
+    // 0 - open space, 1 - obstacle
+    const matrix = Array.from({ length: rows }, () => Array(cols).fill(0));
 
     platformData.forEach(p => {
-        const isWalkable = p.label.startsWith('platform') && p.label !== 'platform-ceiling';
-        if (!isWalkable) return;
+        const isPlatform = p.label.startsWith('platform');
+        if (!isPlatform) return;
         const left = p.x - p.width / 2;
         const right = p.x + p.width / 2;
         const top = p.y - p.height / 2;
@@ -19,7 +20,7 @@ export function buildMatrix(platformData, worldWidth, worldHeight) {
         for (let r = startRow; r <= endRow; r++) {
             for (let c = startCol; c <= endCol; c++) {
                 if (r >= 0 && r < rows && c >= 0 && c < cols) {
-                    matrix[r][c] = 0;
+                    matrix[r][c] = 1;
                 }
             }
         }
