@@ -50,14 +50,25 @@ function findPlatformIndex(pos, graph) {
     return best;
 }
 
-function bfs(graph, startIdx, goalIdx) {
+function bfs(graph, startIdx, goalIdx, targetX) {
     const queue = [[startIdx]];
     const visited = new Set([startIdx]);
     while (queue.length) {
+        // sort by horizontal closeness to the target to get more consistent paths
+        queue.sort((a, b) => {
+            const ax = graph[a[a.length - 1]].x;
+            const bx = graph[b[b.length - 1]].x;
+            return Math.abs(ax - targetX) - Math.abs(bx - targetX);
+        });
         const path = queue.shift();
         const last = path[path.length - 1];
         if (last === goalIdx) return path;
-        graph[last].neighbors.forEach(n => {
+        const neighbors = graph[last].neighbors.slice().sort((n1, n2) => {
+            const x1 = graph[n1].x;
+            const x2 = graph[n2].x;
+            return Math.abs(x1 - targetX) - Math.abs(x2 - targetX);
+        });
+        neighbors.forEach(n => {
             if (!visited.has(n)) {
                 visited.add(n);
                 queue.push([...path, n]);
@@ -91,10 +102,11 @@ export function updateBotAI(botBody, playerBody, platformBodies, config, dt) {
 
     let targetX = playerBody.position.x;
     let targetTop = playerBody.position.y;
+    let nextNode = null;
     if (botPlatform !== null && playerPlatform !== null && botPlatform !== playerPlatform) {
-        const path = bfs(navGraph, botPlatform, playerPlatform);
+        const path = bfs(navGraph, botPlatform, playerPlatform, playerBody.position.x);
         if (path && path.length > 1) {
-            const nextNode = navGraph[path[1]];
+            nextNode = navGraph[path[1]];
             targetX = nextNode.x;
             targetTop = nextNode.top;
         }
@@ -106,9 +118,15 @@ export function updateBotAI(botBody, playerBody, platformBodies, config, dt) {
     }
 
     const currentTop = botPlatform !== null ? navGraph[botPlatform].top : botBody.position.y;
-    const wantJump = targetTop < currentTop - 5;
+    let wantJump = false;
+    if (nextNode) {
+        const horizGap = Math.abs(nextNode.x - botBody.position.x);
+        wantJump = horizGap <= nextNode.width / 2 + 20 && targetTop < currentTop - 5;
+    } else {
+        wantJump = targetTop < currentTop - 5;
+    }
 
-    const isStuck = Math.abs(botBody.position.x - ai.lastPosX) < 1 && now - ai.stuckTime > 500;
+    const isStuck = Math.abs(botBody.position.x - ai.lastPosX) < 1 && now - ai.stuckTime > 700;
 
     if ((wantJump || isStuck) && botBody.renderData.isOnGround && Math.abs(botBody.velocity.y) < jumpVelocityThreshold) {
         input.jumpPressed = true;
