@@ -3,7 +3,7 @@ import { initControls, handleInput } from './controls.js';
 import { Engine, World, Bodies, Body, initPhysics, setupCollisionEvents } from "./physics.js";
 import { drawParallaxBackground, drawPlatforms, drawDecorations, drawPlayer, drawFlash, updateCamera } from './render.js';
 import { initGame, isSinglePlayer } from './initGame.js';
-import { updateBotAI } from './botAI.js';
+import { updateBotAI, initBotNavigation } from './botAI.js';
 
     document.addEventListener('DOMContentLoaded', () => {
 
@@ -91,6 +91,7 @@ import { updateBotAI } from './botAI.js';
         const platformBodies = []; const platformOptions = { isStatic: true, friction: 0.5, frictionStatic: 0.8, restitution: 0 };
         platformData.forEach((data) => { const platformBody = Bodies.rectangle(data.x, data.y, data.width, data.height, { ...platformOptions, angle: data.angle, label: data.label }); platformBody.renderData = { width: data.width, height: data.height, colorBase: colors.platformBase, colorTop: colors.platformEdge, visible: data.visible !== false }; platformBodies.push(platformBody); });
         World.add(world, platformBodies);
+        initBotNavigation(platformBodies, { jumpHeight: 160, jumpReach: 300 });
         setupCollisionEvents({ engine, playerBodies, tagCooldownTime, groundCheckThreshold, jumpStrength, onTag: () => { flashOpacity = 0.3; console.log("Tag! Roles swapped. Flash activated."); } });
 
         // --- Декорации (без изменений) ---
