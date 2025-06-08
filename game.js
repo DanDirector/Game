@@ -108,13 +108,19 @@ import { updateBotAI } from './botAI.js';
             });
             handleInput({ playerBodies, Body, moveSpeed, jumpStrength, accelerationFactor, decelerationFactor, jumpVelocityThreshold, dt });
             if (isSinglePlayer) {
-                updateBotAI(playerBodies[1], playerBodies[0], {
-                    moveSpeed,
-                    jumpStrength,
-                    accelerationFactor,
-                    decelerationFactor,
-                    jumpVelocityThreshold
-                }, dt);
+                updateBotAI(
+                    playerBodies[1],
+                    playerBodies[0],
+                    platformBodies,
+                    {
+                        moveSpeed,
+                        jumpStrength,
+                        accelerationFactor,
+                        decelerationFactor,
+                        jumpVelocityThreshold
+                    },
+                    dt
+                );
             }
             Engine.update(engine, dt); updateCamera(camera, canvasWidth, canvasHeight, worldWidth, worldHeight, zoomPadding, minZoom, maxZoom, zoomLerpFactor, cameraLerpFactor, playerBodies);
             ctx.fillStyle = pageBackgroundColor; ctx.fillRect(0, 0, canvasWidth, canvasHeight); ctx.save();
