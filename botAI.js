@@ -33,11 +33,11 @@ function linkPlatforms(graph, config) {
 }
 
 function findCurrentPlatform(body) {
+    const bottomY = body.bounds.max.y;
     return navigationGraph.find(p =>
         body.position.x >= p.x &&
         body.position.x <= p.x + p.width &&
-        body.position.y <= p.y + p.height &&
-        body.position.y >= p.y
+        Math.abs(bottomY - p.y) <= 10
     );
 }
 
