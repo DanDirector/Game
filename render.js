@@ -8,8 +8,8 @@ const spriteInfo = { width: 0, height: 0, frameWidth: 0, frameHeight: 0 };
 heroSprite.onload = () => {
     spriteInfo.width = heroSprite.width;
     spriteInfo.height = heroSprite.height;
-    spriteInfo.frameWidth = spriteInfo.width / SPRITE_COLS;
-    spriteInfo.frameHeight = spriteInfo.height / SPRITE_ROWS;
+    spriteInfo.frameWidth = Math.floor(spriteInfo.width / SPRITE_COLS);
+    spriteInfo.frameHeight = Math.floor(spriteInfo.height / SPRITE_ROWS);
 };
 
 export function drawRoundRect(ctx, x, y, width, height, radius) {
@@ -128,11 +128,13 @@ export function drawPlayer(ctx, playerBody, deltaTime, colors, constants) {
         data.legAnimationTimer = 0;
     }
 
+    let drawX = -playerWidth / 2;
     if (data.facingDirection === 'left') {
         ctx.scale(-1, 1);
+        drawX = playerWidth / 2;
     }
     const frame = data.legAnimationFrame;
-    const sx = (frame % SPRITE_COLS) * spriteInfo.frameWidth;
+    const sx = (frame % SPRITE_COLS) * Math.floor(spriteInfo.frameWidth);
     const sy = Math.floor(frame / SPRITE_COLS) * spriteInfo.frameHeight;
     ctx.drawImage(
         heroSprite,
@@ -140,7 +142,7 @@ export function drawPlayer(ctx, playerBody, deltaTime, colors, constants) {
         sy,
         spriteInfo.frameWidth,
         spriteInfo.frameHeight,
-        -playerWidth / 2,
+        drawX,
         -playerHeight / 2,
         playerWidth,
         playerHeight
