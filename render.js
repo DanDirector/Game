@@ -1,3 +1,17 @@
+export const heroSprite = new Image();
+heroSprite.src = './assets/hero.png';
+
+// Sprite sheet info: 8 frames laid out horizontally
+const SPRITE_COLS = 8;
+const SPRITE_ROWS = 1;
+const spriteInfo = { width: 0, height: 0, frameWidth: 0, frameHeight: 0 };
+heroSprite.onload = () => {
+    spriteInfo.width = heroSprite.width;
+    spriteInfo.height = heroSprite.height;
+    spriteInfo.frameWidth = Math.floor(spriteInfo.width / SPRITE_COLS);
+    spriteInfo.frameHeight = Math.floor(spriteInfo.height / SPRITE_ROWS);
+};
+
 export function drawRoundRect(ctx, x, y, width, height, radius) {
     if (width < 2 * radius) radius = width / 2;
     if (height < 2 * radius) radius = height / 2;
@@ -96,70 +110,46 @@ export function drawDecorations(ctx, decorations, platformBodies, getPlatformCoo
 }
 
 export function drawPlayer(ctx, playerBody, deltaTime, colors, constants) {
-    const { playerHeight, playerWidth, playerCornerRadius, legAnimationSpeed, tagCooldownTime } = constants;
+    const { playerHeight, playerWidth, legAnimationSpeed, tagCooldownTime } = constants;
     const pos = playerBody.position;
     const data = playerBody.renderData;
-    const headHeight = playerHeight * 0.4;
-    const eyeRadius = playerWidth * 0.09;
-    const pupilRadius = eyeRadius * 0.6;
-    const eyeOffsetY = playerHeight * 0.18;
-    const headbandHeight = playerHeight * 0.18;
-    const legWidth = playerWidth * 0.2;
-    const legHeight = playerHeight * 0.25;
-    const legBaseY = playerHeight / 2 - legHeight;
-    const eyeOffsetXBase = playerWidth * 0.2;
-    let pupilOffsetX = 0;
-    if (data.facingDirection === 'left') {
-        pupilOffsetX = -eyeRadius * 0.4;
-    } else if (data.facingDirection === 'right') {
-        pupilOffsetX = eyeRadius * 0.4;
-    }
-    const legCycleDuration = legAnimationSpeed * 2;
-    let legOffsetY1 = 0;
-    let legOffsetY2 = 0;
-    if (data.isMovingHorizontally && data.isOnGround) {
-        data.legAnimationTimer = (data.legAnimationTimer + deltaTime) % legCycleDuration;
-        const phase = (data.legAnimationTimer / legCycleDuration) * Math.PI * 2;
-        legOffsetY1 = Math.sin(phase) * legHeight * 0.3;
-        legOffsetY2 = Math.sin(phase + Math.PI) * legHeight * 0.3;
-    } else {
-        data.legAnimationTimer = 0;
-    }
+
     ctx.save();
     ctx.translate(pos.x, pos.y);
-    const legDrawY = legBaseY;
-    const legX1 = -playerWidth * 0.2;
-    const legX2 = playerWidth * 0.2;
-    ctx.fillStyle = colors.playerBody;
-    drawRoundRect(ctx, legX1 - legWidth / 2, legDrawY + legOffsetY1, legWidth, legHeight, legWidth / 3);
-    drawRoundRect(ctx, legX2 - legWidth / 2, legDrawY + legOffsetY2, legWidth, legHeight, legWidth / 3);
-    const bodyDrawX = -playerWidth / 2;
-    const bodyDrawY = -playerHeight / 2;
-    ctx.fillStyle = colors.playerBody;
-    drawRoundRect(ctx, bodyDrawX, bodyDrawY, playerWidth, playerHeight, playerCornerRadius);
-    ctx.fillStyle = data.headbandColor;
-    ctx.fillRect(bodyDrawX, bodyDrawY + headHeight * 0.15, playerWidth, headbandHeight);
-    const eyeCenterY = bodyDrawY + eyeOffsetY;
-    const eyeCenterX1 = eyeOffsetXBase * (data.facingDirection === 'left' ? 1.1 : 0.9);
-    const eyeCenterX2 = -eyeOffsetXBase * (data.facingDirection === 'right' ? 1.1 : 0.9);
-    const eyeDrawX1 = data.facingDirection === 'left' ? eyeCenterX2 : eyeCenterX1;
-    const eyeDrawX2 = data.facingDirection === 'left' ? eyeCenterX1 : eyeCenterX2;
-    ctx.fillStyle = colors.eyeWhite;
-    ctx.beginPath();
-    ctx.arc(eyeDrawX1, eyeCenterY, eyeRadius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(eyeDrawX2, eyeCenterY, eyeRadius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = colors.eyePupil;
-    ctx.beginPath();
-    ctx.arc(eyeDrawX1 + pupilOffsetX, eyeCenterY, pupilRadius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(eyeDrawX2 + pupilOffsetX, eyeCenterY, pupilRadius, 0, Math.PI * 2);
-    ctx.fill();
+
+    if (data.isMovingHorizontally && data.isOnGround) {
+        data.legAnimationTimer += deltaTime;
+        if (data.legAnimationTimer >= legAnimationSpeed) {
+            data.legAnimationTimer = 0;
+            data.legAnimationFrame = (data.legAnimationFrame + 1) % SPRITE_COLS;
+        }
+    } else {
+        data.legAnimationFrame = 0;
+        data.legAnimationTimer = 0;
+    }
+
+    let drawX = -playerWidth / 2;
+    if (data.facingDirection === 'left') {
+        ctx.scale(-1, 1);
+        drawX = playerWidth / 2;
+    }
+    const frame = data.legAnimationFrame;
+    const sx = (frame % SPRITE_COLS) * Math.floor(spriteInfo.frameWidth);
+    const sy = Math.floor(frame / SPRITE_COLS) * spriteInfo.frameHeight;
+    ctx.drawImage(
+        heroSprite,
+        sx,
+        sy,
+        spriteInfo.frameWidth,
+        spriteInfo.frameHeight,
+        drawX,
+        -playerHeight / 2,
+        playerWidth,
+        playerHeight
+    );
+
     if (data.isTagger) {
-        const indicatorY = bodyDrawY - 12;
+        const indicatorY = -playerHeight / 2 - 12;
         const indicatorSize = 8;
         ctx.fillStyle = data.tagTimer > 0 ? 'rgba(241, 196, 15, 0.5)' : colors.indicator;
         ctx.beginPath();
@@ -169,13 +159,13 @@ export function drawPlayer(ctx, playerBody, deltaTime, colors, constants) {
         ctx.closePath();
         ctx.fill();
         if (data.tagTimer > 0) {
-            const progressBarY = bodyDrawY - 20;
+            const progressBarY = -playerHeight / 2 - 20;
             const progressBarHeight = 4;
             const progress = 1 - data.tagTimer / tagCooldownTime;
             ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-            ctx.fillRect(bodyDrawX, progressBarY, playerWidth, progressBarHeight);
+            ctx.fillRect(-playerWidth / 2, progressBarY, playerWidth, progressBarHeight);
             ctx.fillStyle = colors.indicator;
-            ctx.fillRect(bodyDrawX, progressBarY, playerWidth * progress, progressBarHeight);
+            ctx.fillRect(-playerWidth / 2, progressBarY, playerWidth * progress, progressBarHeight);
         }
     }
     ctx.restore();
