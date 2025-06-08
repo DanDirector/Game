@@ -68,8 +68,6 @@ import { buildMatrix } from './pathfindingGrid.js';
         const platformData = createPlatformData({ worldWidth, worldHeight, boundaryThickness, p1StartX, p2StartX, platformHeight });
 
         const matrix = buildMatrix(platformData, worldWidth, worldHeight);
-        const baseGrid = new window.PF.Grid(matrix);
-        const finder = new window.PF.AStarFinder();
 
         // --- Инициализация Matter.js ---
 
@@ -119,7 +117,7 @@ import { buildMatrix } from './pathfindingGrid.js';
                     accelerationFactor,
                     decelerationFactor,
                     jumpVelocityThreshold
-                }, dt, { grid: baseGrid, finder });
+                }, dt, { matrix });
             }
             Engine.update(engine, dt); updateCamera(camera, canvasWidth, canvasHeight, worldWidth, worldHeight, zoomPadding, minZoom, maxZoom, zoomLerpFactor, cameraLerpFactor, playerBodies);
             ctx.fillStyle = pageBackgroundColor; ctx.fillRect(0, 0, canvasWidth, canvasHeight); ctx.save();

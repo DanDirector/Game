@@ -35,3 +35,31 @@ export function worldToGrid(x, y) {
 export function gridToWorld(gx, gy) {
     return { x: gx * CELL_SIZE + CELL_SIZE / 2, y: gy * CELL_SIZE + CELL_SIZE / 2 };
 }
+export function findPath(start, end, matrix) {
+    const rows = matrix.length;
+    const cols = matrix[0].length;
+    const visited = Array.from({ length: rows }, () => Array(cols).fill(false));
+    const queue = [{ x: start.gx, y: start.gy, path: [[start.gx, start.gy]] }];
+    visited[start.gy][start.gx] = true;
+    const dirs = [
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1]
+    ];
+    while (queue.length > 0) {
+        const node = queue.shift();
+        if (node.x === end.gx && node.y === end.gy) {
+            return node.path;
+        }
+        for (const [dx, dy] of dirs) {
+            const nx = node.x + dx;
+            const ny = node.y + dy;
+            if (nx >= 0 && nx < cols && ny >= 0 && ny < rows && !visited[ny][nx] && matrix[ny][nx] === 0) {
+                visited[ny][nx] = true;
+                queue.push({ x: nx, y: ny, path: [...node.path, [nx, ny]] });
+            }
+        }
+    }
+    return [];
+}

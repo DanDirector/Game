@@ -1,8 +1,8 @@
 import { Body } from './physics.js';
 import { applyMovement } from './movementController.js';
-import { worldToGrid, gridToWorld, CELL_SIZE } from './pathfindingGrid.js';
+import { worldToGrid, gridToWorld, CELL_SIZE, findPath } from './pathfindingGrid.js';
 
-export function updateBotAI(botBody, playerBody, config, dt, { grid, finder }) {
+export function updateBotAI(botBody, playerBody, config, dt, { matrix }) {
     const { moveSpeed, jumpStrength, accelerationFactor, decelerationFactor, jumpVelocityThreshold } = config;
 
     if (!botBody.renderData.aiState) {
@@ -25,8 +25,7 @@ export function updateBotAI(botBody, playerBody, config, dt, { grid, finder }) {
     const targetChanged = !ai.targetCell || ai.targetCell.gx !== end.gx || ai.targetCell.gy !== end.gy;
 
     if (ai.pathTimer <= 0 || targetChanged || ai.pathIndex >= ai.path.length) {
-        const gridClone = grid.clone();
-        const newPath = finder.findPath(start.gx, start.gy, end.gx, end.gy, gridClone);
+        const newPath = findPath(start, end, matrix);
         ai.path = newPath;
         ai.pathIndex = 0;
         ai.targetCell = end;
