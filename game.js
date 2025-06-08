@@ -4,6 +4,7 @@ import { Engine, World, Bodies, Body, initPhysics, setupCollisionEvents } from "
 import { drawParallaxBackground, drawPlatforms, drawDecorations, drawPlayer, drawFlash, updateCamera } from './render.js';
 import { initGame, isSinglePlayer } from './initGame.js';
 import { updateBotAI } from './botAI.js';
+import { buildPlatformGraph } from './platformGraph.js';
 
     document.addEventListener('DOMContentLoaded', () => {
 
@@ -91,6 +92,7 @@ import { updateBotAI } from './botAI.js';
         const platformBodies = []; const platformOptions = { isStatic: true, friction: 0.5, frictionStatic: 0.8, restitution: 0 };
         platformData.forEach((data) => { const platformBody = Bodies.rectangle(data.x, data.y, data.width, data.height, { ...platformOptions, angle: data.angle, label: data.label }); platformBody.renderData = { width: data.width, height: data.height, colorBase: colors.platformBase, colorTop: colors.platformEdge, visible: data.visible !== false }; platformBodies.push(platformBody); });
         World.add(world, platformBodies);
+        const platformGraph = buildPlatformGraph(platformBodies);
         setupCollisionEvents({ engine, playerBodies, tagCooldownTime, groundCheckThreshold, jumpStrength, onTag: () => { flashOpacity = 0.3; console.log("Tag! Roles swapped. Flash activated."); } });
 
         // --- Декорации (без изменений) ---
@@ -108,13 +110,20 @@ import { updateBotAI } from './botAI.js';
             });
             handleInput({ playerBodies, Body, moveSpeed, jumpStrength, accelerationFactor, decelerationFactor, jumpVelocityThreshold, dt });
             if (isSinglePlayer) {
-                updateBotAI(playerBodies[1], playerBodies[0], {
-                    moveSpeed,
-                    jumpStrength,
-                    accelerationFactor,
-                    decelerationFactor,
-                    jumpVelocityThreshold
-                }, dt);
+                updateBotAI(
+                    playerBodies[1],
+                    playerBodies[0],
+                    platformGraph,
+                    platformBodies,
+                    {
+                        moveSpeed,
+                        jumpStrength,
+                        accelerationFactor,
+                        decelerationFactor,
+                        jumpVelocityThreshold
+                    },
+                    dt
+                );
             }
             Engine.update(engine, dt); updateCamera(camera, canvasWidth, canvasHeight, worldWidth, worldHeight, zoomPadding, minZoom, maxZoom, zoomLerpFactor, cameraLerpFactor, playerBodies);
             ctx.fillStyle = pageBackgroundColor; ctx.fillRect(0, 0, canvasWidth, canvasHeight); ctx.save();
