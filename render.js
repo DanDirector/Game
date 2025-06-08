@@ -128,7 +128,7 @@ export function drawPlayer(ctx, playerBody, deltaTime, colors, constants) {
         data.legAnimationTimer = 0;
     }
 
-    let drawX = -playerWidth / 2;
+    let drawX = -playerWidth / 3;
     if (data.facingDirection === 'left') {
         ctx.scale(-1, 1);
         drawX = playerWidth / 2;
