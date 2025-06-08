@@ -1,9 +1,9 @@
 export const heroSprite = new Image();
 heroSprite.src = './assets/hero.png';
 
-// Sprite sheet info (10 columns x 3 rows)
-const SPRITE_COLS = 10;
-const SPRITE_ROWS = 3;
+// Sprite sheet info: 8 frames laid out horizontally
+const SPRITE_COLS = 8;
+const SPRITE_ROWS = 1;
 const spriteInfo = { width: 0, height: 0, frameWidth: 0, frameHeight: 0 };
 heroSprite.onload = () => {
     spriteInfo.width = heroSprite.width;
@@ -121,7 +121,7 @@ export function drawPlayer(ctx, playerBody, deltaTime, colors, constants) {
         data.legAnimationTimer += deltaTime;
         if (data.legAnimationTimer >= legAnimationSpeed) {
             data.legAnimationTimer = 0;
-            data.legAnimationFrame = (data.legAnimationFrame + 1) % (SPRITE_COLS * SPRITE_ROWS);
+            data.legAnimationFrame = (data.legAnimationFrame + 1) % SPRITE_COLS;
         }
     } else {
         data.legAnimationFrame = 0;
