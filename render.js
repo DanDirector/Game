@@ -1,6 +1,17 @@
 export const heroSprite = new Image();
 heroSprite.src = './assets/hero.png';
 
+// Sprite sheet info (10 columns x 3 rows)
+const SPRITE_COLS = 10;
+const SPRITE_ROWS = 3;
+const spriteInfo = { width: 0, height: 0, frameWidth: 0, frameHeight: 0 };
+heroSprite.onload = () => {
+    spriteInfo.width = heroSprite.width;
+    spriteInfo.height = heroSprite.height;
+    spriteInfo.frameWidth = spriteInfo.width / SPRITE_COLS;
+    spriteInfo.frameHeight = spriteInfo.height / SPRITE_ROWS;
+};
+
 export function drawRoundRect(ctx, x, y, width, height, radius) {
     if (width < 2 * radius) radius = width / 2;
     if (height < 2 * radius) radius = height / 2;
@@ -98,17 +109,42 @@ export function drawDecorations(ctx, decorations, platformBodies, getPlatformCoo
     });
 }
 
-export function drawPlayer(ctx, playerBody, _deltaTime, colors, constants) {
-    const { playerHeight, playerWidth, tagCooldownTime } = constants;
+export function drawPlayer(ctx, playerBody, deltaTime, colors, constants) {
+    const { playerHeight, playerWidth, legAnimationSpeed, tagCooldownTime } = constants;
     const pos = playerBody.position;
     const data = playerBody.renderData;
 
     ctx.save();
     ctx.translate(pos.x, pos.y);
+
+    if (data.isMovingHorizontally && data.isOnGround) {
+        data.legAnimationTimer += deltaTime;
+        if (data.legAnimationTimer >= legAnimationSpeed) {
+            data.legAnimationTimer = 0;
+            data.legAnimationFrame = (data.legAnimationFrame + 1) % (SPRITE_COLS * SPRITE_ROWS);
+        }
+    } else {
+        data.legAnimationFrame = 0;
+        data.legAnimationTimer = 0;
+    }
+
     if (data.facingDirection === 'left') {
         ctx.scale(-1, 1);
     }
-    ctx.drawImage(heroSprite, -playerWidth / 2, -playerHeight / 2, playerWidth, playerHeight);
+    const frame = data.legAnimationFrame;
+    const sx = (frame % SPRITE_COLS) * spriteInfo.frameWidth;
+    const sy = Math.floor(frame / SPRITE_COLS) * spriteInfo.frameHeight;
+    ctx.drawImage(
+        heroSprite,
+        sx,
+        sy,
+        spriteInfo.frameWidth,
+        spriteInfo.frameHeight,
+        -playerWidth / 2,
+        -playerHeight / 2,
+        playerWidth,
+        playerHeight
+    );
 
     if (data.isTagger) {
         const indicatorY = -playerHeight / 2 - 12;
