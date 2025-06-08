@@ -54,7 +54,12 @@ export function updateBotAI(botBody, playerBody, platformGraph, platformBodies, 
         const verticalDiff = botPlatform.position.y - nextPlatform.position.y;
         const horizontalDistance = Math.abs(dx);
         if (verticalDiff > 20 && horizontalDistance < 220 && botBody.renderData.isOnGround && Math.abs(botBody.velocity.y) < jumpVelocityThreshold) {
-            input.jumpPressed = true;
+            const botHeight = botBody.bounds.max.y - botBody.bounds.min.y;
+            const headY = botBody.position.y - botHeight / 2;
+            const nextBottom = nextPlatform.position.y + nextPlatform.renderData.height / 2;
+            if (nextBottom - headY > 10) {
+                input.jumpPressed = true;
+            }
         }
 
         if (botPlatform.label === nextPlatform.label) {
