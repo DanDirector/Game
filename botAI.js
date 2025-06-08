@@ -86,7 +86,9 @@ function checkStuck(botBody, aiState, config, dt) {
         botBody.position.y - aiState.lastPos.y
     );
     if (dist < config.stuckDistanceThreshold) {
-        aiState.stuckTimer += dt * 1000;
+        // dt provided from the game loop is already in milliseconds
+        // so we simply accumulate it without additional scaling
+        aiState.stuckTimer += dt;
     } else {
         aiState.stuckTimer = 0;
         aiState.lastPos = { x: botBody.position.x, y: botBody.position.y };
