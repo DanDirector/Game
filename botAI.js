@@ -1,44 +1,53 @@
 import { Body } from './physics.js';
 import { applyMovement } from './movementController.js';
+import { findCurrentPlatform, findPath } from './navigationGraph.js';
 
-export function updateBotAI(botBody, playerBody, config, dt) {
+export function updateBotAI(botBody, playerBody, config, dt, { graph }) {
     const { moveSpeed, jumpStrength, accelerationFactor, decelerationFactor, jumpVelocityThreshold } = config;
 
     if (!botBody.renderData.aiState) {
         botBody.renderData.aiState = {
-            lastPosX: botBody.position.x,
-            stuckTime: Date.now()
+            lastPosition: { x: botBody.position.x, y: botBody.position.y },
+            stuckTimer: 0
         };
     }
 
     const ai = botBody.renderData.aiState;
-    const now = Date.now();
+
+    const botPlatform = findCurrentPlatform(botBody, graph);
+    const playerPlatform = findCurrentPlatform(playerBody, graph);
 
     const input = { moveLeft: false, moveRight: false, jumpPressed: false };
 
-    const dx = playerBody.position.x - botBody.position.x;
-    const dy = playerBody.position.y - botBody.position.y;
-
-    if (Math.abs(dx) > 2) {
-        if (dx < 0) input.moveLeft = true;
-        else input.moveRight = true;
+    if (botPlatform && playerPlatform) {
+        if (botPlatform.index === playerPlatform.index) {
+            if (botBody.position.x > playerBody.position.x + 2) input.moveLeft = true;
+            if (botBody.position.x < playerBody.position.x - 2) input.moveRight = true;
+        } else {
+            const path = findPath(graph, botPlatform.index, playerPlatform.index);
+            if (path.length > 0) {
+                const nextPlatform = graph[path[0]];
+                const targetX = nextPlatform.x;
+                if (botBody.position.x > targetX + 2) input.moveLeft = true;
+                if (botBody.position.x < targetX - 2) input.moveRight = true;
+                if (botBody.position.y > nextPlatform.y && botBody.renderData.isOnGround && Math.abs(botBody.velocity.y) < jumpVelocityThreshold) {
+                    input.jumpPressed = true;
+                }
+            }
+        }
     }
 
-    const horizontalDistance = Math.abs(dx);
-    const shouldJump = dy < -20 && horizontalDistance < 200;
+    if (Math.hypot(botBody.position.x - ai.lastPosition.x, botBody.position.y - ai.lastPosition.y) < 1) {
+        ai.stuckTimer += dt;
+    } else {
+        ai.stuckTimer = 0;
+        ai.lastPosition = { x: botBody.position.x, y: botBody.position.y };
+    }
 
-    const isStuck = (Math.abs(botBody.position.x - ai.lastPosX) < 1) && (now - ai.stuckTime > 500);
-
-    if ((shouldJump || isStuck) && botBody.renderData.isOnGround && Math.abs(botBody.velocity.y) < jumpVelocityThreshold) {
+    if (ai.stuckTimer > 500 && botBody.renderData.isOnGround && Math.abs(botBody.velocity.y) < jumpVelocityThreshold) {
         input.jumpPressed = true;
-        ai.stuckTime = now;
+        ai.stuckTimer = 0;
     }
-
-    if (Math.abs(botBody.position.x - ai.lastPosX) >= 1) {
-        ai.stuckTime = now;
-    }
-
-    ai.lastPosX = botBody.position.x;
 
     applyMovement(
         botBody,

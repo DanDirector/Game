@@ -4,6 +4,7 @@ import { Engine, World, Bodies, Body, initPhysics, setupCollisionEvents } from "
 import { drawParallaxBackground, drawPlatforms, drawDecorations, drawPlayer, drawFlash, updateCamera } from './render.js';
 import { initGame, isSinglePlayer } from './initGame.js';
 import { updateBotAI } from './botAI.js';
+import { buildNavigationGraph } from './navigationGraph.js';
 
     document.addEventListener('DOMContentLoaded', () => {
 
@@ -66,6 +67,11 @@ import { updateBotAI } from './botAI.js';
 
         const platformData = createPlatformData({ worldWidth, worldHeight, boundaryThickness, p1StartX, p2StartX, platformHeight });
 
+        const navGraph = buildNavigationGraph(platformData, {
+            jumpReach: 400,
+            jumpHeight: 300
+        });
+
         // --- Инициализация Matter.js ---
 
         // --- Создание игроков ---
@@ -114,7 +120,7 @@ import { updateBotAI } from './botAI.js';
                     accelerationFactor,
                     decelerationFactor,
                     jumpVelocityThreshold
-                }, dt);
+                }, dt, { graph: navGraph });
             }
             Engine.update(engine, dt); updateCamera(camera, canvasWidth, canvasHeight, worldWidth, worldHeight, zoomPadding, minZoom, maxZoom, zoomLerpFactor, cameraLerpFactor, playerBodies);
             ctx.fillStyle = pageBackgroundColor; ctx.fillRect(0, 0, canvasWidth, canvasHeight); ctx.save();
