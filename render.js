@@ -1,4 +1,4 @@
-export function drawRoundRect(ctx, x, y, width, height, radius) {
+function roundedRectPath(ctx, x, y, width, height, radius) {
     if (width < 2 * radius) radius = width / 2;
     if (height < 2 * radius) radius = height / 2;
     ctx.beginPath();
@@ -8,20 +8,20 @@ export function drawRoundRect(ctx, x, y, width, height, radius) {
     ctx.arcTo(x, y + height, x, y, radius);
     ctx.arcTo(x, y, x + width, y, radius);
     ctx.closePath();
+}
+
+export function drawRoundRect(ctx, x, y, width, height, radius) {
+    roundedRectPath(ctx, x, y, width, height, radius);
     ctx.fill();
 }
 
 function drawRoundRectStroke(ctx, x, y, width, height, radius) {
-    if (width < 2 * radius) radius = width / 2;
-    if (height < 2 * radius) radius = height / 2;
-    ctx.beginPath();
-    ctx.moveTo(x + radius, y);
-    ctx.arcTo(x + width, y, x + width, y + height, radius);
-    ctx.arcTo(x + width, y + height, x, y + height, radius);
-    ctx.arcTo(x, y + height, x, y, radius);
-    ctx.arcTo(x, y, x + width, y, radius);
-    ctx.closePath();
+    roundedRectPath(ctx, x, y, width, height, radius);
     ctx.stroke();
+}
+
+function hasLoadedImage(image) {
+    return Boolean(image && image.complete && image.naturalWidth > 0 && image.naturalHeight > 0);
 }
 
 function drawCloud(ctx, x, y, scale, color) {
@@ -77,7 +77,52 @@ export function drawParallaxBackground(ctx, camera, worldWidth, worldHeight, col
     ctx.restore();
 }
 
-export function drawPlatforms(ctx, platformBodies, colors) {
+function drawTexturedCosmosPlatform(ctx, textureImage, width, height, radius, colors) {
+    const x = -width / 2;
+    const y = -height / 2;
+
+    ctx.save();
+    roundedRectPath(ctx, x, y, width, height, radius);
+    ctx.clip();
+
+    const sourceWidth = textureImage.naturalWidth;
+    const sourceHeight = textureImage.naturalHeight;
+    const scale = Math.min(0.6, Math.max((height / sourceHeight) * 2.7, height / sourceHeight, 0.34));
+    const drawWidth = sourceWidth * scale;
+    const drawHeight = sourceHeight * scale;
+    const drawY = y + (height - drawHeight) / 2;
+
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    if (drawWidth >= width) {
+        ctx.drawImage(textureImage, x + (width - drawWidth) / 2, drawY, drawWidth, drawHeight);
+    } else {
+        for (let drawX = x; drawX < x + width; drawX += drawWidth) {
+            ctx.drawImage(textureImage, drawX, drawY, drawWidth, drawHeight);
+        }
+    }
+
+    const surfaceShade = ctx.createLinearGradient(0, y, 0, y + height);
+    surfaceShade.addColorStop(0, 'rgba(255, 230, 164, 0.20)');
+    surfaceShade.addColorStop(0.32, 'rgba(255, 230, 164, 0.05)');
+    surfaceShade.addColorStop(1, 'rgba(0, 0, 0, 0.30)');
+    ctx.fillStyle = surfaceShade;
+    ctx.fillRect(x, y, width, height);
+    ctx.restore();
+
+    ctx.strokeStyle = colors.platformStroke;
+    ctx.lineWidth = 2;
+    drawRoundRectStroke(ctx, x, y, width, height, radius);
+
+    ctx.strokeStyle = colors.platformHighlight;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(x + 10, y + 4);
+    ctx.lineTo(x + width - 10, y + 4);
+    ctx.stroke();
+}
+
+export function drawPlatforms(ctx, platformBodies, colors, platformTextureImage = null) {
     const edgeHeight = 9;
     platformBodies.forEach(platformBody => {
         if (!platformBody.renderData.visible) return;
@@ -90,6 +135,40 @@ export function drawPlatforms(ctx, platformBodies, colors) {
         ctx.save();
         ctx.translate(pos.x, pos.y);
         ctx.rotate(angle);
+
+        if (colors.platformStyle === 'cosmos') {
+            if (hasLoadedImage(platformTextureImage)) {
+                drawTexturedCosmosPlatform(ctx, platformTextureImage, width, height, 5, colors);
+                ctx.restore();
+                return;
+            }
+
+            ctx.shadowColor = 'transparent';
+            ctx.fillStyle = colors.platformBase;
+            drawRoundRect(ctx, -width / 2, -height / 2, width, height, 4);
+
+            ctx.fillStyle = colors.platformTop;
+            ctx.fillRect(-width / 2, -height / 2, width, edgeHeight);
+
+            ctx.fillStyle = colors.platformHighlight;
+            ctx.fillRect(-width / 2 + 8, -height / 2 + 3, Math.max(0, width - 16), 2);
+
+            ctx.strokeStyle = colors.platformSideShade;
+            ctx.lineWidth = 1;
+            for (let y = -height / 2 + 12; y < height / 2 - 4; y += 6) {
+                ctx.beginPath();
+                ctx.moveTo(-width / 2 + 10, y);
+                ctx.lineTo(width / 2 - 10, y);
+                ctx.stroke();
+            }
+
+            ctx.strokeStyle = colors.platformStroke;
+            ctx.lineWidth = 2;
+            drawRoundRectStroke(ctx, -width / 2, -height / 2, width, height, 4);
+
+            ctx.restore();
+            return;
+        }
 
         ctx.shadowColor = colors.platformShadow;
         ctx.shadowBlur = 18;
@@ -195,6 +274,362 @@ export function drawDecorations(ctx, decorations, platformBodies, getPlatformCoo
             }
         }
     });
+}
+
+function createRenderCanvas(width, height) {
+    if (typeof OffscreenCanvas !== 'undefined') {
+        return new OffscreenCanvas(width, height);
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    return canvas;
+}
+
+function createScaledRenderCache(sourceCanvas, scale, alpha = false) {
+    const scaledCanvas = createRenderCanvas(
+        Math.max(1, Math.round(sourceCanvas.width * scale)),
+        Math.max(1, Math.round(sourceCanvas.height * scale))
+    );
+    const scaledCtx = scaledCanvas.getContext('2d', { alpha });
+
+    scaledCtx.imageSmoothingEnabled = true;
+    scaledCtx.imageSmoothingQuality = 'high';
+    scaledCtx.drawImage(sourceCanvas, 0, 0, scaledCanvas.width, scaledCanvas.height);
+
+    return { canvas: scaledCanvas, scale };
+}
+
+export function createWorldRenderCache({ worldWidth, worldHeight, bottomPadding, colors, platformBodies, decorations, getPlatformCoords, includeBackground = true, platformTextureImage = null }) {
+    const cacheCanvas = createRenderCanvas(worldWidth, worldHeight + bottomPadding);
+    const cacheCtx = cacheCanvas.getContext('2d', { alpha: !includeBackground });
+
+    if (includeBackground) {
+        const skyGradient = cacheCtx.createLinearGradient(0, 0, 0, worldHeight);
+
+        skyGradient.addColorStop(0, colors.backgroundStart);
+        skyGradient.addColorStop(1, colors.backgroundEnd);
+        cacheCtx.fillStyle = skyGradient;
+        cacheCtx.fillRect(0, 0, worldWidth, worldHeight + bottomPadding);
+
+        drawParallaxBackground(
+            cacheCtx,
+            { focusX: 0, focusY: 0 },
+            worldWidth,
+            worldHeight,
+            colors,
+            0
+        );
+    } else {
+        cacheCtx.clearRect(0, 0, worldWidth, worldHeight + bottomPadding);
+    }
+
+    drawDecorations(cacheCtx, decorations, platformBodies, getPlatformCoords, colors);
+    drawPlatforms(cacheCtx, platformBodies, colors, platformTextureImage);
+
+    return {
+        levels: [
+            { canvas: cacheCanvas, scale: 1 },
+            createScaledRenderCache(cacheCanvas, 0.55, !includeBackground),
+            createScaledRenderCache(cacheCanvas, 0.32, !includeBackground)
+        ]
+    };
+}
+
+function chooseRenderCacheLevel(renderCache, zoom) {
+    if (!renderCache.levels) {
+        return { canvas: renderCache, scale: 1 };
+    }
+
+    if (zoom < 0.38) return renderCache.levels[2];
+    if (zoom < 0.58) return renderCache.levels[1];
+    return renderCache.levels[0];
+}
+
+export function drawCachedWorld(ctx, renderCache, camera, canvasWidth, canvasHeight, margin = 120) {
+    const { canvas: cacheCanvas, scale } = chooseRenderCacheLevel(renderCache, camera.zoom);
+    const viewWidth = canvasWidth / camera.zoom;
+    const viewHeight = canvasHeight / camera.zoom;
+    const sourceWidth = cacheCanvas.width / scale;
+    const sourceHeight = cacheCanvas.height / scale;
+    const sx = Math.max(0, Math.floor(camera.focusX - viewWidth / 2 - margin));
+    const sy = Math.max(0, Math.floor(camera.focusY - viewHeight / 2 - margin));
+    const sw = Math.min(sourceWidth - sx, Math.ceil(viewWidth + margin * 2));
+    const sh = Math.min(sourceHeight - sy, Math.ceil(viewHeight + margin * 2));
+
+    if (sw <= 0 || sh <= 0) return;
+
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'medium';
+    ctx.drawImage(
+        cacheCanvas,
+        sx * scale,
+        sy * scale,
+        sw * scale,
+        sh * scale,
+        sx,
+        sy,
+        sw,
+        sh
+    );
+}
+
+function seededUnit(index, salt) {
+    const value = Math.sin(index * 127.1 + salt * 311.7) * 43758.5453;
+    return value - Math.floor(value);
+}
+
+const cosmosStars = Array.from({ length: 130 }, (_, index) => ({
+    x: seededUnit(index, 1) * 3600 - 200,
+    y: seededUnit(index, 2) * 2650 - 120,
+    size: 1 + Math.floor(seededUnit(index, 3) * 3),
+    kind: seededUnit(index, 4) > 0.88 ? 'cross' : 'dot',
+    color: seededUnit(index, 5) > 0.72 ? '#f1dca5' : '#f4f4ef',
+    depth: 0.12 + seededUnit(index, 6) * 0.08
+}));
+
+const cosmosPlanets = [
+    { type: 'stripe', x: 520, y: 360, radius: 74, depth: 0.22, base: '#f5e5b2', stroke: '#f0c56e', line: '#8e4d27' },
+    { type: 'ring', x: 2110, y: 640, radius: 54, depth: 0.28, base: '#e55b3f', stroke: '#f0c56e', line: '#f3d99b' },
+    { type: 'rock', x: 1050, y: 850, radius: 46, depth: 0.25, base: '#191919', stroke: '#d8c28b', line: '#f0dfb1' },
+    { type: 'cloud', x: 2860, y: 930, radius: 72, depth: 0.18, base: '#3b3b3a', stroke: '#77736a', line: '#9d9276' },
+    { type: 'moon', x: 1780, y: 1030, radius: 30, depth: 0.2, base: '#f5d990', stroke: '#fff1bd', line: '#f5d990' },
+    { type: 'moon', x: 2650, y: 260, radius: 18, depth: 0.14, base: '#d5b98a', stroke: '#f3e1b3', line: '#d5b98a' }
+];
+
+function parallaxPoint(camera, canvasWidth, canvasHeight, worldX, worldY, depth) {
+    return {
+        x: canvasWidth / 2 + (worldX - camera.focusX) * camera.zoom * depth,
+        y: canvasHeight / 2 + (worldY - camera.focusY) * camera.zoom * depth
+    };
+}
+
+function drawCrossStar(ctx, x, y, size, color) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x - size * 3, y);
+    ctx.lineTo(x + size * 3, y);
+    ctx.moveTo(x, y - size * 3);
+    ctx.lineTo(x, y + size * 3);
+    ctx.moveTo(x - size * 1.7, y - size * 1.7);
+    ctx.lineTo(x + size * 1.7, y + size * 1.7);
+    ctx.moveTo(x - size * 1.7, y + size * 1.7);
+    ctx.lineTo(x + size * 1.7, y - size * 1.7);
+    ctx.stroke();
+}
+
+function drawStripePlanet(ctx, planet, x, y, radius) {
+    ctx.fillStyle = planet.base;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.strokeStyle = planet.line;
+    ctx.lineWidth = Math.max(2, radius * 0.04);
+    for (let offset = -radius * 0.72; offset <= radius * 0.75; offset += radius * 0.25) {
+        ctx.beginPath();
+        ctx.moveTo(x - radius * 1.05, y + offset);
+        ctx.bezierCurveTo(
+            x - radius * 0.35,
+            y + offset - radius * 0.22,
+            x + radius * 0.35,
+            y + offset + radius * 0.22,
+            x + radius * 1.05,
+            y + offset
+        );
+        ctx.stroke();
+    }
+    ctx.restore();
+    ctx.strokeStyle = planet.stroke;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.stroke();
+}
+
+function drawRingPlanet(ctx, planet, x, y, radius) {
+    ctx.strokeStyle = planet.line;
+    ctx.lineWidth = Math.max(4, radius * 0.1);
+    ctx.beginPath();
+    ctx.ellipse(x, y + radius * 0.04, radius * 1.75, radius * 0.45, 0.18, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.fillStyle = planet.base;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = planet.stroke;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.strokeStyle = '#15110d';
+    ctx.lineWidth = Math.max(2, radius * 0.05);
+    ctx.beginPath();
+    ctx.ellipse(x, y + radius * 0.04, radius * 1.75, radius * 0.45, 0.18, Math.PI * 0.04, Math.PI * 0.95);
+    ctx.stroke();
+}
+
+function drawCloudPlanet(ctx, planet, x, y, radius) {
+    ctx.fillStyle = planet.base;
+    ctx.beginPath();
+    for (let index = 0; index < 14; index += 1) {
+        const angle = (index / 14) * Math.PI * 2;
+        const wave = 0.88 + Math.sin(index * 1.9) * 0.11;
+        const px = x + Math.cos(angle) * radius * wave;
+        const py = y + Math.sin(angle) * radius * (0.72 + Math.cos(index * 1.4) * 0.08);
+        if (index === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = planet.stroke;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.strokeStyle = planet.line;
+    ctx.lineWidth = 1.4;
+    for (let offset = -radius * 0.35; offset <= radius * 0.35; offset += radius * 0.22) {
+        ctx.beginPath();
+        ctx.moveTo(x - radius * 0.55, y + offset);
+        ctx.bezierCurveTo(x - radius * 0.1, y + offset - 7, x + radius * 0.3, y + offset + 8, x + radius * 0.58, y + offset);
+        ctx.stroke();
+    }
+}
+
+function drawRockPlanet(ctx, planet, x, y, radius) {
+    ctx.fillStyle = planet.base;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = planet.stroke;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.strokeStyle = planet.line;
+    ctx.lineWidth = 1.5;
+    for (let index = 0; index < 8; index += 1) {
+        const start = (index / 8) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(x + Math.cos(start) * radius * 0.2, y + Math.sin(start) * radius * 0.2);
+        ctx.lineTo(x + Math.cos(start + 0.7) * radius * 0.78, y + Math.sin(start + 0.7) * radius * 0.78);
+        ctx.stroke();
+    }
+}
+
+function drawPlanet(ctx, camera, canvasWidth, canvasHeight, planet) {
+    const point = parallaxPoint(camera, canvasWidth, canvasHeight, planet.x, planet.y, planet.depth);
+    const radius = planet.radius * Math.max(0.52, Math.min(1.1, camera.zoom * 1.3));
+
+    if (
+        point.x < -radius * 3 ||
+        point.x > canvasWidth + radius * 3 ||
+        point.y < -radius * 3 ||
+        point.y > canvasHeight + radius * 3
+    ) {
+        return;
+    }
+
+    if (planet.type === 'stripe') drawStripePlanet(ctx, planet, point.x, point.y, radius);
+    else if (planet.type === 'ring') drawRingPlanet(ctx, planet, point.x, point.y, radius);
+    else if (planet.type === 'cloud') drawCloudPlanet(ctx, planet, point.x, point.y, radius);
+    else if (planet.type === 'rock') drawRockPlanet(ctx, planet, point.x, point.y, radius);
+    else {
+        ctx.fillStyle = planet.base;
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = planet.stroke;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+}
+
+function drawCosmosWaveBand(ctx, camera, canvasWidth, canvasHeight, worldWidth, baseY, depth, fill, stroke, phase, amplitude, closeToBottom) {
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    for (let worldX = -400; worldX <= worldWidth + 400; worldX += 120) {
+        const waveY = baseY +
+            Math.sin(worldX * 0.005 + phase) * amplitude +
+            Math.sin(worldX * 0.011 + phase * 0.7) * amplitude * 0.28;
+        const point = parallaxPoint(camera, canvasWidth, canvasHeight, worldX, waveY, depth);
+        if (worldX === -400) ctx.moveTo(point.x, point.y);
+        else ctx.lineTo(point.x, point.y);
+    }
+    ctx.lineTo(canvasWidth + 220, closeToBottom);
+    ctx.lineTo(-220, closeToBottom);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 2;
+    for (let line = 0; line < 7; line += 1) {
+        ctx.beginPath();
+        for (let worldX = -400; worldX <= worldWidth + 400; worldX += 100) {
+            const waveY = baseY + line * 42 +
+                Math.sin(worldX * 0.005 + phase + line * 0.38) * amplitude +
+                Math.sin(worldX * 0.011 + phase * 0.7) * amplitude * 0.22;
+            const point = parallaxPoint(camera, canvasWidth, canvasHeight, worldX, waveY, depth);
+            if (worldX === -400) ctx.moveTo(point.x, point.y);
+            else ctx.lineTo(point.x, point.y);
+        }
+        ctx.stroke();
+    }
+}
+
+function drawParallaxImageBackground(ctx, camera, canvasWidth, canvasHeight, worldWidth, worldHeight, image) {
+    const coverScale = Math.max(canvasWidth / image.naturalWidth, canvasHeight / image.naturalHeight);
+    const zoomReference = 0.35;
+    const zoomScale = Math.max(0.9, Math.min(1.2, 1 + (camera.zoom - zoomReference) * 0.42));
+    const scale = coverScale * 1.62 * zoomScale;
+    const drawWidth = image.naturalWidth * scale;
+    const drawHeight = image.naturalHeight * scale;
+    const maxPanX = Math.max(0, drawWidth - canvasWidth);
+    const maxPanY = Math.max(0, drawHeight - canvasHeight);
+    const cameraOffsetX = (camera.focusX - worldWidth / 2) / Math.max(1, worldWidth / 2);
+    const cameraOffsetY = (camera.focusY - worldHeight / 2) / Math.max(1, worldHeight / 2);
+    const x = (canvasWidth - drawWidth) / 2 - cameraOffsetX * maxPanX * 0.46;
+    const y = (canvasHeight - drawHeight) / 2 - cameraOffsetY * maxPanY * 0.32;
+
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(image, x, y, drawWidth, drawHeight);
+}
+
+export function drawCosmosBackground(ctx, camera, canvasWidth, canvasHeight, worldWidth, worldHeight, image = null) {
+    ctx.save();
+    if (hasLoadedImage(image)) {
+        drawParallaxImageBackground(ctx, camera, canvasWidth, canvasHeight, worldWidth, worldHeight, image);
+        ctx.restore();
+        return;
+    }
+
+    ctx.fillStyle = '#0d0d0c';
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+    cosmosStars.forEach(star => {
+        const point = parallaxPoint(camera, canvasWidth, canvasHeight, star.x, star.y, star.depth);
+        if (point.x < -20 || point.x > canvasWidth + 20 || point.y < -20 || point.y > canvasHeight + 20) return;
+
+        if (star.kind === 'cross') {
+            drawCrossStar(ctx, point.x, point.y, star.size, star.color);
+        } else {
+            ctx.fillStyle = star.color;
+            ctx.beginPath();
+            ctx.arc(point.x, point.y, star.size * 0.75, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    });
+
+    cosmosPlanets.forEach(planet => drawPlanet(ctx, camera, canvasWidth, canvasHeight, planet));
+
+    drawCosmosWaveBand(ctx, camera, canvasWidth, canvasHeight, worldWidth, worldHeight - 760, 0.46, '#171716', '#3c3a35', 0.2, 92, canvasHeight + 260);
+    drawCosmosWaveBand(ctx, camera, canvasWidth, canvasHeight, worldWidth, worldHeight - 560, 0.58, '#0f0f0e', '#b99a5f', 1.4, 72, canvasHeight + 260);
+    drawCosmosWaveBand(ctx, camera, canvasWidth, canvasHeight, worldWidth, worldHeight - 370, 0.72, '#1d1d1b', '#ead38e', 2.1, 58, canvasHeight + 300);
+
+    ctx.restore();
 }
 
 export function drawPlayer(ctx, playerBody, deltaTime, colors, constants) {
@@ -315,9 +750,12 @@ export function drawPlayer(ctx, playerBody, deltaTime, colors, constants) {
 export function drawFlash(ctx, canvasWidth, canvasHeight, getOpacity, setOpacity) {
     const opacity = getOpacity();
     if (opacity > 0) {
-        ctx.fillStyle = `rgba(255, 255, 0, ${opacity.toFixed(2)})`;
+        ctx.save();
+        ctx.globalAlpha = opacity;
+        ctx.fillStyle = '#fff2a6';
         ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-        setOpacity(opacity - 0.05);
+        ctx.restore();
+        setOpacity(Math.max(0, opacity - 0.06));
     }
 }
 

@@ -1,6 +1,6 @@
 import { Body } from './physics.js';
 import { applyMovement } from './movementController.js';
-import { findPath } from './ai/pathfinder.js';
+import { createPathSearch } from './ai/pathfinder.js';
 import {
     clampXToSurface,
     createPlatformGraph,
@@ -19,7 +19,9 @@ const LAUNCH_OVERSHOOT_GRACE = 70;
 const RUN_UP_DISTANCE = 95;
 const STUCK_REPLAN_TIME = 650;
 const FAILED_EDGE_BASE_COOLDOWN = 5000;
-const FLEE_REPLAN_INTERVAL = 520;
+const FLEE_REPLAN_INTERVAL = 480;
+const FLEE_URGENT_REPLAN_INTERVAL = 220;
+const FLEE_PLAYER_MOVE_REPLAN_DISTANCE = 150;
 const DANGER_DISTANCE = 520;
 const ROUTE_IDLE_REPLAN_TIME = 520;
 const PATH_STEP_GUARD = 8;
@@ -114,6 +116,10 @@ class SmartBotAI {
         this.time = 0;
         this.failedEdges = new Map();
         this.routeIdleTimer = 0;
+        this.lastFleeBotSurfaceId = null;
+        this.lastFleePlayerSurfaceId = null;
+        this.lastFleePlayerX = null;
+        this.lastFleePlayerY = null;
     }
 
     getDebugState() {
@@ -242,13 +248,22 @@ class SmartBotAI {
             (botBody.position.y - playerBody.position.y) * 0.75
         );
         const sameSurface = playerSurface && botSurface.id === playerSurface.id;
-        const shouldReplan = !this.path ||
-            this.replanTimer <= 0 ||
-            sameSurface ||
-            distanceToPlayer < DANGER_DISTANCE;
+        const hasActivePath = this.path && this.edgeIndex < this.path.edges.length;
+        const playerSurfaceId = playerSurface?.id || null;
+        const surfaceChanged = this.lastFleeBotSurfaceId !== botSurface.id ||
+            this.lastFleePlayerSurfaceId !== playerSurfaceId;
+        const playerMovedSincePlan = this.lastFleePlayerX === null ||
+            Math.hypot(
+                playerBody.position.x - this.lastFleePlayerX,
+                (playerBody.position.y - this.lastFleePlayerY) * 0.75
+            ) > FLEE_PLAYER_MOVE_REPLAN_DISTANCE;
+        const urgentReplan = sameSurface || distanceToPlayer < DANGER_DISTANCE;
+        const shouldReplan = !hasActivePath ||
+            surfaceChanged ||
+            (this.replanTimer <= 0 && (urgentReplan || playerMovedSincePlan));
 
         if (botBody.renderData.isOnGround && !this.airAction && shouldReplan) {
-            this.planEscapePath(botBody, playerBody, botSurface, playerSurface);
+            this.planEscapePath(botBody, playerBody, botSurface, playerSurface, urgentReplan);
         }
 
         if (!this.path || this.path.edges.length === 0) {
@@ -431,9 +446,18 @@ class SmartBotAI {
         this.status = this.path ? 'planned' : 'plan-failed';
     }
 
-    planEscapePath(botBody, playerBody, botSurface, playerSurface) {
+    planEscapePath(botBody, playerBody, botSurface, playerSurface, urgentReplan = false) {
         const startNode = findClosestNodeOnSurface(this.graph, botSurface.id, botBody.position.x);
         let bestPlan = null;
+        const pathSearch = this.createPathSearchFrom(startNode);
+
+        if (!pathSearch) {
+            this.path = null;
+            this.planMode = 'flee-failed';
+            this.status = 'flee-plan-failed';
+            return;
+        }
+
         const botFootY = botBody.position.y + this.config.playerHeight / 2;
         const playerFootY = playerBody.position.y + this.config.playerHeight / 2;
         const playerIsBelowOrLevel = playerFootY >= botFootY - 80;
@@ -441,12 +465,8 @@ class SmartBotAI {
         const nodesToTry = candidateNodes.length > 0 ? candidateNodes : this.graph.nodes;
 
         nodesToTry.forEach(goalNode => {
-            const path = findPath(this.graph, startNode.id, goalNode.id, {
-                isEdgeBlocked: edge => this.isEdgeBlocked(edge),
-                edgePenalty: edge => this.getEdgePenalty(edge)
-            });
-            if (!path) return;
-            if (path.edges.length === 0) return;
+            const pathCost = pathSearch.getCost(goalNode.id);
+            if (!Number.isFinite(pathCost) || pathCost <= 0) return;
 
             const horizontalDistance = Math.abs(goalNode.x - playerBody.position.x);
             const verticalDistance = Math.abs(goalNode.footY - playerFootY);
@@ -456,7 +476,7 @@ class SmartBotAI {
             const sameSurfacePenalty = playerSurface && goalNode.surfaceId === playerSurface.id ? 520 : 0;
             const currentSurfacePenalty = goalNode.surfaceId === botSurface.id ? 420 : 0;
             const dangerPenalty = Math.max(0, DANGER_DISTANCE - horizontalDistance) * 3.8;
-            const routeCost = path.cost * 0.32;
+            const routeCost = pathCost * 0.32;
             const climbBonus = playerIsBelowOrLevel ? highGround * 1.4 : highGround * 0.35;
             const score = routeCost +
                 sameSurfacePenalty +
@@ -467,26 +487,39 @@ class SmartBotAI {
                 playerBelowBonus;
 
             if (!bestPlan || score < bestPlan.score) {
-                bestPlan = { path, score };
+                bestPlan = { path: pathSearch.getPath(goalNode.id), score };
             }
         });
 
         this.path = bestPlan?.path || null;
         this.edgeIndex = 0;
         this.airAction = null;
-        this.replanTimer = FLEE_REPLAN_INTERVAL;
+        this.replanTimer = urgentReplan ? FLEE_URGENT_REPLAN_INTERVAL : FLEE_REPLAN_INTERVAL;
+        this.lastFleeBotSurfaceId = botSurface.id;
+        this.lastFleePlayerSurfaceId = playerSurface?.id || null;
+        this.lastFleePlayerX = playerBody.position.x;
+        this.lastFleePlayerY = playerBody.position.y;
         this.planMode = this.path ? 'flee' : 'flee-failed';
         this.status = this.path ? 'flee-planned' : 'flee-plan-failed';
     }
 
+    createPathSearchFrom(startNode) {
+        if (!startNode) return null;
+
+        return createPathSearch(this.graph, startNode.id, {
+            isEdgeBlocked: edge => this.isEdgeBlocked(edge),
+            edgePenalty: edge => this.getEdgePenalty(edge)
+        });
+    }
+
     findBestPathToNodes(startNode, candidateNodes, extraCost) {
         let bestPlan = null;
+        const pathSearch = this.createPathSearchFrom(startNode);
+
+        if (!pathSearch) return null;
 
         candidateNodes.forEach(goalNode => {
-            const path = findPath(this.graph, startNode.id, goalNode.id, {
-                isEdgeBlocked: edge => this.isEdgeBlocked(edge),
-                edgePenalty: edge => this.getEdgePenalty(edge)
-            });
+            const path = pathSearch.getPath(goalNode.id);
             if (!path) return;
 
             const score = path.cost + extraCost(goalNode, path);

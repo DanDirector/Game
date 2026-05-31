@@ -25,8 +25,8 @@ canvas {
   background-color: #bce1ec;
   display: block;
   box-shadow:
-    0 28px 90px rgba(0, 0, 0, 0.48),
-    0 8px 24px rgba(0, 0, 0, 0.32),
+    0 12px 28px rgba(0, 0, 0, 0.36),
+    0 4px 12px rgba(0, 0, 0, 0.24),
     inset 0 1px 0 rgba(255, 255, 255, 0.28);
 }
 
@@ -46,6 +46,21 @@ canvas {
   backdrop-filter: blur(10px);
 }
 
+.start-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: stretch;
+  width: min(92vw, 420px);
+}
+
+.map-select,
+.mode-select {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
 .start-screen button {
   min-width: 170px;
   padding: 13px 22px;
@@ -63,6 +78,42 @@ canvas {
   transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
 }
 
+.start-screen .map-button {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  background: #111111;
+  color: #f4d88d;
+  border-color: rgba(244, 216, 141, 0.58);
+  box-shadow: none;
+}
+
+.start-screen .map-button.active {
+  background: #f4d88d;
+  color: #15120b;
+}
+
+.map-swatch {
+  width: 22px;
+  height: 22px;
+  border: 2px solid currentColor;
+  display: inline-block;
+}
+
+.island-swatch {
+  background:
+    linear-gradient(180deg, #72d6f4 0 45%, #f5c774 45% 58%, #4ec36f 58% 100%);
+}
+
+.cosmos-swatch {
+  background:
+    radial-gradient(circle at 68% 34%, #e55b3f 0 18%, transparent 19%),
+    radial-gradient(circle at 28% 35%, #f5e5b2 0 18%, transparent 19%),
+    linear-gradient(180deg, #080808 0 100%);
+}
+
 .start-screen button:hover {
   filter: brightness(1.04);
   transform: translateY(-2px);
@@ -76,4 +127,19 @@ canvas {
   box-shadow:
     0 8px 18px rgba(0, 0, 0, 0.28),
     inset 0 2px 5px rgba(92, 53, 11, 0.28);
+}
+
+@media (max-width: 520px) {
+  body {
+    padding: 10px;
+  }
+
+  .start-panel {
+    width: min(94vw, 340px);
+  }
+
+  .start-screen button {
+    min-width: 0;
+    padding: 12px 10px;
+  }
 }

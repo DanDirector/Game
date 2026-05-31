@@ -22,6 +22,24 @@ function reconstructPath(cameFrom, edgeFrom, currentId, graph) {
     };
 }
 
+function createPathResult(cameFrom, edgeFrom, startNodeId, goalNodeId, graph, cost) {
+    if (startNodeId === goalNodeId) {
+        return {
+            nodes: [graph.nodesById.get(startNodeId)],
+            edges: [],
+            cost: 0
+        };
+    }
+
+    if (!Number.isFinite(cost) || !cameFrom.has(goalNodeId)) {
+        return null;
+    }
+
+    const path = reconstructPath(cameFrom, edgeFrom, goalNodeId, graph);
+    path.cost = cost;
+    return path;
+}
+
 export function findPath(graph, startNodeId, goalNodeId, options = {}) {
     if (!graph.nodesById.has(startNodeId) || !graph.nodesById.has(goalNodeId)) {
         return null;
@@ -79,4 +97,53 @@ export function findPath(graph, startNodeId, goalNodeId, options = {}) {
     }
 
     return null;
+}
+
+export function createPathSearch(graph, startNodeId, options = {}) {
+    if (!graph.nodesById.has(startNodeId)) {
+        return null;
+    }
+
+    const openSet = new Set([startNodeId]);
+    const cameFrom = new Map();
+    const edgeFrom = new Map();
+    const gScore = new Map([[startNodeId, 0]]);
+
+    while (openSet.size > 0) {
+        let currentId = null;
+        let currentScore = Infinity;
+
+        openSet.forEach(nodeId => {
+            const score = gScore.get(nodeId) ?? Infinity;
+            if (score < currentScore) {
+                currentId = nodeId;
+                currentScore = score;
+            }
+        });
+
+        openSet.delete(currentId);
+
+        const edges = graph.edgesByNodeId.get(currentId) || [];
+        edges.forEach(edge => {
+            if (options.isEdgeBlocked && options.isEdgeBlocked(edge)) return;
+
+            const edgePenalty = options.edgePenalty ? options.edgePenalty(edge) : 0;
+            const tentativeGScore = currentScore + edge.cost + edgePenalty;
+            if (tentativeGScore >= (gScore.get(edge.to) ?? Infinity)) return;
+
+            cameFrom.set(edge.to, currentId);
+            edgeFrom.set(edge.to, edge);
+            gScore.set(edge.to, tentativeGScore);
+            openSet.add(edge.to);
+        });
+    }
+
+    return {
+        getCost(goalNodeId) {
+            return gScore.get(goalNodeId) ?? Infinity;
+        },
+        getPath(goalNodeId) {
+            return createPathResult(cameFrom, edgeFrom, startNodeId, goalNodeId, graph, gScore.get(goalNodeId) ?? Infinity);
+        }
+    };
 }
