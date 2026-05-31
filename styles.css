@@ -1,20 +1,33 @@
-/* ... стили без изменений ... */
+* {
+  box-sizing: border-box;
+}
+
 body {
   display: flex;
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background-color: #2a2a2a;
+  background:
+    linear-gradient(145deg, #141821 0%, #242830 46%, #30281f 100%);
   margin: 0;
-  font-family: sans-serif;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   flex-direction: column;
   overflow: hidden;
+  padding: 24px;
 }
 
 canvas {
-  border: 1px solid #f5c876;
-  background-color: #e0e6eb;
+  width: min(94vw, 1120px);
+  height: auto;
+  aspect-ratio: 4 / 3;
+  border: 1px solid rgba(255, 215, 148, 0.5);
+  border-radius: 8px;
+  background-color: #bce1ec;
   display: block;
+  box-shadow:
+    0 28px 90px rgba(0, 0, 0, 0.48),
+    0 8px 24px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
 }
 
 .start-screen {
@@ -23,16 +36,44 @@ canvas {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.7);
+  background:
+    linear-gradient(145deg, rgba(16, 20, 29, 0.9), rgba(47, 40, 30, 0.84));
   display: flex;
   justify-content: center;
   align-items: center;
   flex-direction: column;
+  gap: 12px;
+  backdrop-filter: blur(10px);
 }
 
 .start-screen button {
-  padding: 10px 20px;
-  font-size: 1.2rem;
+  min-width: 170px;
+  padding: 13px 22px;
+  border: 1px solid rgba(255, 225, 171, 0.5);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #ffe6ad 0%, #f3b960 100%);
+  color: #312113;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0;
   cursor: pointer;
-  margin: 5px;
+  box-shadow:
+    0 14px 30px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
+}
+
+.start-screen button:hover {
+  filter: brightness(1.04);
+  transform: translateY(-2px);
+  box-shadow:
+    0 18px 36px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+
+.start-screen button:active {
+  transform: translateY(0);
+  box-shadow:
+    0 8px 18px rgba(0, 0, 0, 0.28),
+    inset 0 2px 5px rgba(92, 53, 11, 0.28);
 }
