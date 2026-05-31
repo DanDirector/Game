@@ -8,5 +8,5 @@ export function initGame(mode, mapId = 'islands') {
     isSinglePlayer = false;
   }
 
-  selectedMapId = mapId === 'cosmos' ? 'cosmos' : 'islands';
+  selectedMapId = ['islands', 'cosmos', 'bulb'].includes(mapId) ? mapId : 'islands';
 }

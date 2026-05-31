@@ -122,6 +122,66 @@ function drawTexturedCosmosPlatform(ctx, textureImage, width, height, radius, co
     ctx.stroke();
 }
 
+function drawBulbPlatform(ctx, width, height, radius, colors) {
+    const x = -width / 2;
+    const y = -height / 2;
+    const centerY = height > 44 ? y + Math.min(20, height * 0.24) : 0;
+    const lineStart = x + Math.max(radius + 6, height * 0.5);
+    const lineEnd = x + width - Math.max(radius + 6, height * 0.5);
+    const glowLineWidth = Math.min(20, Math.max(9, height * 0.58));
+    const coreLineWidth = Math.min(11, Math.max(6, height * 0.34));
+    const hotLineWidth = Math.min(4, Math.max(2.5, height * 0.14));
+
+    ctx.save();
+    const glassGradient = ctx.createLinearGradient(0, y, 0, y + height);
+    glassGradient.addColorStop(0, colors.platformGlass || 'rgba(255, 128, 28, 0.16)');
+    glassGradient.addColorStop(0.5, 'rgba(255, 119, 24, 0.08)');
+    glassGradient.addColorStop(1, 'rgba(30, 6, 2, 0.45)');
+    ctx.fillStyle = glassGradient;
+    ctx.shadowColor = colors.platformGlow || 'rgba(255, 92, 18, 0.86)';
+    ctx.shadowBlur = 18;
+    drawRoundRect(ctx, x, y, width, height, radius);
+
+    ctx.lineCap = 'round';
+    ctx.shadowColor = colors.platformGlow || '#ff6819';
+    ctx.shadowBlur = 30;
+    ctx.strokeStyle = colors.platformGlow || '#ff6819';
+    ctx.lineWidth = glowLineWidth;
+    ctx.beginPath();
+    ctx.moveTo(lineStart, centerY);
+    ctx.lineTo(lineEnd, centerY);
+    ctx.stroke();
+
+    ctx.shadowBlur = 16;
+    ctx.strokeStyle = colors.platformCore || '#ff8a25';
+    ctx.lineWidth = coreLineWidth;
+    ctx.beginPath();
+    ctx.moveTo(lineStart, centerY);
+    ctx.lineTo(lineEnd, centerY);
+    ctx.stroke();
+
+    ctx.shadowBlur = 8;
+    ctx.strokeStyle = colors.platformHot || '#fff1a3';
+    ctx.lineWidth = hotLineWidth;
+    ctx.beginPath();
+    ctx.moveTo(lineStart, centerY - height * 0.02);
+    ctx.lineTo(lineEnd, centerY - height * 0.02);
+    ctx.stroke();
+
+    ctx.shadowColor = 'transparent';
+    ctx.strokeStyle = colors.platformStroke;
+    ctx.lineWidth = 1.5;
+    drawRoundRectStroke(ctx, x, y, width, height, radius);
+
+    ctx.strokeStyle = 'rgba(255, 245, 180, 0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(lineStart, y + height * 0.28);
+    ctx.lineTo(lineEnd, y + height * 0.28);
+    ctx.stroke();
+    ctx.restore();
+}
+
 export function drawPlatforms(ctx, platformBodies, colors, platformTextureImage = null) {
     const edgeHeight = 9;
     platformBodies.forEach(platformBody => {
@@ -166,6 +226,12 @@ export function drawPlatforms(ctx, platformBodies, colors, platformTextureImage 
             ctx.lineWidth = 2;
             drawRoundRectStroke(ctx, -width / 2, -height / 2, width, height, 4);
 
+            ctx.restore();
+            return;
+        }
+
+        if (colors.platformStyle === 'bulb') {
+            drawBulbPlatform(ctx, width, height, Math.min(14, height / 2), colors);
             ctx.restore();
             return;
         }
@@ -632,6 +698,37 @@ export function drawCosmosBackground(ctx, camera, canvasWidth, canvasHeight, wor
     ctx.restore();
 }
 
+export function drawBulbBackground(ctx, camera, canvasWidth, canvasHeight, worldWidth, worldHeight, image = null, colors = {}) {
+    ctx.save();
+    if (hasLoadedImage(image)) {
+        drawParallaxImageBackground(ctx, camera, canvasWidth, canvasHeight, worldWidth, worldHeight, image);
+    } else {
+        const gradient = ctx.createLinearGradient(0, 0, 0, canvasHeight);
+        gradient.addColorStop(0, colors.backgroundStart || '#071012');
+        gradient.addColorStop(1, colors.backgroundEnd || '#101b1d');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+        ctx.fillStyle = 'rgba(255, 94, 18, 0.12)';
+        ctx.fillRect(canvasWidth * 0.14, 0, canvasWidth * 0.08, canvasHeight);
+        ctx.fillRect(canvasWidth * 0.72, 0, canvasWidth * 0.1, canvasHeight);
+    }
+
+    const vignette = ctx.createRadialGradient(
+        canvasWidth * 0.5,
+        canvasHeight * 0.48,
+        canvasWidth * 0.12,
+        canvasWidth * 0.5,
+        canvasHeight * 0.48,
+        canvasWidth * 0.72
+    );
+    vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    vignette.addColorStop(1, 'rgba(0, 0, 0, 0.36)');
+    ctx.fillStyle = vignette;
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+    ctx.restore();
+}
+
 export function drawPlayer(ctx, playerBody, deltaTime, colors, constants) {
     const { playerHeight, playerWidth, playerCornerRadius, legAnimationSpeed, tagCooldownTime } = constants;
     const pos = playerBody.position;
@@ -686,18 +783,51 @@ export function drawPlayer(ctx, playerBody, deltaTime, colors, constants) {
     bodyGradient.addColorStop(0, colors.playerBodyLight);
     bodyGradient.addColorStop(0.45, colors.playerBody);
     bodyGradient.addColorStop(1, colors.playerBodyDark);
+    if (colors.playerGlow) {
+        ctx.shadowColor = colors.playerGlow;
+        ctx.shadowBlur = 10;
+    }
     ctx.fillStyle = bodyGradient;
     drawRoundRect(ctx, bodyDrawX, bodyDrawY, playerWidth, playerHeight, playerCornerRadius);
+    ctx.shadowColor = 'transparent';
+
+    if (colors.playerStyle === 'chrome') {
+        ctx.save();
+        roundedRectPath(ctx, bodyDrawX, bodyDrawY, playerWidth, playerHeight, playerCornerRadius);
+        ctx.clip();
+        const chromeReflection = ctx.createLinearGradient(bodyDrawX, 0, bodyDrawX + playerWidth, 0);
+        chromeReflection.addColorStop(0, 'rgba(0, 0, 0, 0.45)');
+        chromeReflection.addColorStop(0.22, 'rgba(255, 255, 255, 0.18)');
+        chromeReflection.addColorStop(0.42, 'rgba(0, 0, 0, 0.28)');
+        chromeReflection.addColorStop(0.72, 'rgba(212, 244, 244, 0.24)');
+        chromeReflection.addColorStop(1, 'rgba(0, 0, 0, 0.55)');
+        ctx.fillStyle = chromeReflection;
+        ctx.fillRect(bodyDrawX, bodyDrawY, playerWidth, playerHeight);
+        ctx.fillStyle = colors.playerBodyHighlight;
+        drawRoundRect(ctx, bodyDrawX + playerWidth * 0.62, bodyDrawY + 5, playerWidth * 0.16, playerHeight - 10, 3);
+        ctx.restore();
+    }
+
     ctx.strokeStyle = colors.playerStroke;
     ctx.lineWidth = 1.5;
     drawRoundRectStroke(ctx, bodyDrawX, bodyDrawY, playerWidth, playerHeight, playerCornerRadius);
+    if (colors.playerRim) {
+        ctx.strokeStyle = colors.playerRim;
+        ctx.lineWidth = 0.8;
+        drawRoundRectStroke(ctx, bodyDrawX + 1.5, bodyDrawY + 1.5, playerWidth - 3, playerHeight - 3, playerCornerRadius - 1);
+    }
 
     const headbandGradient = ctx.createLinearGradient(bodyDrawX, 0, bodyDrawX + playerWidth, 0);
     headbandGradient.addColorStop(0, data.headbandColor);
     headbandGradient.addColorStop(0.55, colors.headbandHighlight);
     headbandGradient.addColorStop(1, data.headbandColor);
+    if (colors.headbandGlow) {
+        ctx.shadowColor = colors.headbandGlow;
+        ctx.shadowBlur = 8;
+    }
     ctx.fillStyle = headbandGradient;
     drawRoundRect(ctx, bodyDrawX, bodyDrawY + headHeight * 0.15, playerWidth, headbandHeight, 2);
+    ctx.shadowColor = 'transparent';
 
     ctx.fillStyle = colors.playerBodyHighlight;
     drawRoundRect(ctx, bodyDrawX + 4, bodyDrawY + 6, 6, playerHeight - 14, 3);

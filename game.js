@@ -1,7 +1,7 @@
 import { createPlatformData, getPlatformCoords } from './platforms.js';
 import { initControls, handleInput } from './controls.js';
 import { Engine, World, Bodies, Body, initPhysics, setupCollisionEvents } from "./physics.js";
-import { createWorldRenderCache, drawCachedWorld, drawCosmosBackground, drawPlayer, drawFlash, updateCamera } from './render.js';
+import { createWorldRenderCache, drawCachedWorld, drawCosmosBackground, drawBulbBackground, drawPlayer, drawFlash, updateCamera } from './render.js';
 import { initGame, isSinglePlayer, selectedMapId } from './initGame.js';
 import { createBotAI, drawBotDebug } from './botAI.js';
 import { createMapTheme } from './mapThemes.js';
@@ -176,6 +176,8 @@ import { createMapTheme } from './mapThemes.js';
             ctx.fillStyle = pageBackgroundColor; ctx.fillRect(0, 0, canvasWidth, canvasHeight); ctx.save();
             if (theme.background === 'cosmos') {
                 drawCosmosBackground(ctx, camera, canvasWidth, canvasHeight, worldWidth, worldHeight, backgroundImage);
+            } else if (theme.background === 'bulb') {
+                drawBulbBackground(ctx, camera, canvasWidth, canvasHeight, worldWidth, worldHeight, backgroundImage, colors);
             }
             ctx.translate(canvasWidth / 2, canvasHeight / 2); ctx.scale(camera.zoom, camera.zoom); ctx.translate(-camera.focusX, -camera.focusY);
             drawCachedWorld(ctx, worldRenderCache, camera, canvasWidth, canvasHeight);

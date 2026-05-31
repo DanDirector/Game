@@ -74,8 +74,49 @@ const cosmosColors = {
     flash: 'rgba(255, 226, 145, 0.22)'
 };
 
+const bulbColors = {
+    ...islandColors,
+    backgroundStart: '#071012',
+    backgroundEnd: '#101b1d',
+    platformStyle: 'bulb',
+    platformTop: '#ffb24a',
+    platformBase: '#ff6819',
+    platformEdge: '#ffd36e',
+    platformLip: '#fff0a8',
+    platformUnderside: '#4b1808',
+    platformSideShade: 'rgba(42, 8, 2, 0.75)',
+    platformHighlight: '#ffe9a8',
+    platformStroke: '#ff7a1c',
+    platformGlow: 'rgba(255, 92, 18, 0.86)',
+    platformCore: '#ff8a25',
+    platformHot: '#fff1a3',
+    platformGlass: 'rgba(255, 99, 24, 0.14)',
+    platformOuterGlow: 'rgba(255, 83, 17, 0.24)',
+    platformShadow: 'transparent',
+    playerStyle: 'chrome',
+    playerBody: '#1b2526',
+    playerBodyLight: '#8a9898',
+    playerBodyDark: '#030607',
+    playerStroke: '#ff8330',
+    playerBodyHighlight: 'rgba(229, 248, 245, 0.72)',
+    playerRim: 'rgba(255, 168, 76, 0.72)',
+    playerGlow: 'rgba(255, 96, 24, 0.32)',
+    playerShadow: 'rgba(255, 90, 22, 0.24)',
+    player1Headband: '#36cfff',
+    player2Headband: '#ff6a1d',
+    headbandHighlight: '#fff3bc',
+    headbandGlow: 'rgba(255, 104, 24, 0.75)',
+    eyeWhite: '#f8ffff',
+    eyePupil: '#070a0a',
+    indicator: '#ff9a2b',
+    indicatorGlow: 'rgba(255, 104, 24, 0.75)',
+    cooldownTrack: 'rgba(10, 14, 14, 0.68)',
+    borderColor: '#ff7a1c',
+    flash: 'rgba(255, 106, 29, 0.2)'
+};
+
 export function createMapDecorations(mapId, worldWidth) {
-    if (mapId === 'cosmos') {
+    if (mapId === 'cosmos' || mapId === 'bulb') {
         return [];
     }
 
@@ -96,6 +137,19 @@ export function createMapDecorations(mapId, worldWidth) {
 }
 
 export function createMapTheme(mapId, worldWidth) {
+    if (mapId === 'bulb') {
+        return {
+            id: 'bulb',
+            colors: bulbColors,
+            pageBackgroundColor: '#05090a',
+            cacheBackground: false,
+            background: 'bulb',
+            backgroundImageSrc: 'assets/bulb-texture-background.png',
+            platformTextureSrc: null,
+            decorations: createMapDecorations('bulb', worldWidth)
+        };
+    }
+
     if (mapId === 'cosmos') {
         return {
             id: 'cosmos',
